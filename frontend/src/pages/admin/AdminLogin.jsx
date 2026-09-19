@@ -10,19 +10,21 @@ export default function AdminLogin() {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
     try {
       const data = await api.post('/auth/login', { email, password });
-      if (data.token) {
+      if (data && data.token) {
         localStorage.setItem('admin_token', data.token);
         navigate('/admin');
       } else {
-        setError(data.message || 'Invalid credentials');
+        setError(data.message || 'Invalid email or password');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      console.error('Login error:', err);
+      setError(err.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }

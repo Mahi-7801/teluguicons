@@ -1,7 +1,9 @@
+const PROD_API_URL = 'https://awards-production-13eb.up.railway.app/api';
+
 const rawEnv = (import.meta.env.VITE_API_URL || '').trim();
 export const API_BASE = rawEnv
   ? (rawEnv.replace(/\/+$/, '').endsWith('/api') ? rawEnv.replace(/\/+$/, '') : `${rawEnv.replace(/\/+$/, '')}/api`)
-  : '/api';
+  : (import.meta.env.DEV ? '/api' : PROD_API_URL);
 
 export const getAssetUrl = (url) => {
   if (!url) return '';
