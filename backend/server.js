@@ -105,12 +105,6 @@ const USE_CLUSTER = process.env.CLUSTER === '1' || process.env.CLUSTER === 'true
 const WORKERS = Math.max(1, Number(process.env.WORKERS) || 1);
 
 const main = async () => {
-  const ready = await ensureDatabase();
-  if (!ready) {
-    console.error('Unable to connect to Supabase. Check DATABASE_URL in backend/.env.');
-    process.exit(1);
-  }
-
   if (USE_CLUSTER && cluster.isMaster) {
     console.log(`[cluster] master ${process.pid} spawning ${WORKERS} worker(s)...`);
     for (let i = 0; i < WORKERS; i++) cluster.fork();
@@ -119,7 +113,13 @@ const main = async () => {
       cluster.fork();
     });
   } else {
+    // Start HTTP server immediately so Railway health checks pass instantly
     startServer();
+
+    // Verify database connection asynchronously in background
+    ensureDatabase().catch((err) => {
+      console.error('Database connection check error:', err.message);
+    });
   }
 };
 

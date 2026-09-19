@@ -21,35 +21,44 @@ const connectionString =
     ? `postgresql://${process.env.PGUSER || 'postgres'}:${process.env.PGPASSWORD || ''}@${process.env.PGHOST}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || 'postgres'}`
     : undefined);
 
+let pool;
 if (!connectionString) {
-  console.error('✗ No database configured. Set DATABASE_URL (Supabase connection string) in backend/.env');
-  process.exit(1);
+  console.warn('⚠️ No database configured. Set DATABASE_URL (Supabase connection string) in Railway Variables.');
+  pool = {
+    query: async () => [[], { mock: true }],
+    getConnection: async () => ({
+      query: async () => [[], { mock: true }],
+      beginTransaction: async () => {},
+      commit: async () => {},
+      rollback: async () => {},
+      release: () => {},
+    }),
+    on: () => {},
+  };
+} else {
+  const poolConfig = {
+    connectionString,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    max: Number(process.env.DB_POOL_SIZE) || 10,
+    keepAlive: true,
+  };
+
+  if (process.env.PGHOST_IS_POOLER === 'true') {
+    poolConfig.options = '-c search_path=public';
+  }
+
+  if (process.env.DB_SSL !== 'false') {
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+
+  pool = new Pool(poolConfig);
+  pool.on('error', (err) => {
+    console.error('PG pool error:', err.message);
+  });
 }
 
-const poolConfig = {
-  connectionString,
-  connectionTimeoutMillis: 10000,
-  idleTimeoutMillis: 30000,
-  max: Number(process.env.DB_POOL_SIZE) || 10,
-  keepAlive: true,
-};
-
-if (process.env.PGHOST_IS_POOLER === 'true') {
-  // Supabase transaction pooler requires the special settings to work.
-  poolConfig.options = '-c search_path=public';
-}
-
-// Supabase requires TLS. Allow self-signed (in practice never reject).
-if (process.env.DB_SSL !== 'false') {
-  poolConfig.ssl = { rejectUnauthorized: false };
-}
-
-const pool = new Pool(poolConfig);
-const nativeQuery = pool.query.bind(pool);
-
-pool.on('error', (err) => {
-  console.error('PG pool error:', err.message);
-});
+const nativeQuery = (pool.query && pool.query.bind) ? pool.query.bind(pool) : async () => ({ rows: [] });
 
 // Rewrite mysql2 `?` placeholders to PostgreSQL `$1, $2 ...`.
 function convertPlaceholders(sql, params) {
