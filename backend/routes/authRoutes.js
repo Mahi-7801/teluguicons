@@ -3,6 +3,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'telugu_icon_awards_secret_key_2024_very_secure';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -18,12 +21,10 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    const jwtSecret = process.env.JWT_SECRET || 'telugu_icon_awards_secret_key_2024_very_secure';
-    const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role },
-      jwtSecret,
-      { expiresIn: jwtExpiresIn }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
     res.json({
       token,
@@ -41,7 +42,7 @@ router.get('/me', async (req, res) => {
     return res.status(401).json({ message: 'No token, authorization denied' });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
     const [rows] = await pool.query('SELECT id, name, email, role FROM users WHERE id = ?', [decoded.id]);
     if (rows.length === 0) {
       return res.status(404).json({ message: 'User not found' });
