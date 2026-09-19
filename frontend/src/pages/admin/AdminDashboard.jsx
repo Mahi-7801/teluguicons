@@ -9,7 +9,6 @@ const TABS = [
   { key: 'categories', label: 'Categories', icon: '🏷️' },
   { key: 'votes', label: 'Votes & Audit', icon: '🗳️' },
   { key: 'sponsors', label: 'Sponsors', icon: '🤝' },
-  { key: 'sms-templates', label: 'SMS Templates', icon: '📲' },
   { key: 'settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -123,7 +122,6 @@ export default function AdminDashboard() {
             <Route path="categories" element={<CategoriesTab />} />
             <Route path="votes" element={<VotesTab />} />
             <Route path="sponsors" element={<SponsorsTab />} />
-            <Route path="sms-templates" element={<SmsTemplatesTab />} />
             <Route path="settings" element={<SettingsTab />} />
           </Routes>
         </div>
