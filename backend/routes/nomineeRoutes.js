@@ -1,0 +1,64 @@
+const router = require('express').Router();
+const { pool } = require('../config/database');
+const { cached } = require('../utils/cache');
+
+router.get('/', async (req, res) => {
+  try {
+    const { category, status, featured } = req.query;
+    const key = `nominees:${category || ''}|${status || ''}|${featured || ''}`;
+    const rows = await cached(key, 30, async () => {
+      let sql = `SELECT n.id, n.full_name, n.slug, n.bio, n.photo_url, n.social_handle, n.followers_count,
+                        n.featured, n.status, n.nominee_code, n.vote_count, c.name AS category_name, c.slug AS category_slug
+                 FROM nominees n JOIN categories c ON n.category_id = c.id WHERE 1=1`;
+      const params = [];
+      if (category) { sql += ' AND c.slug = ?'; params.push(category); }
+      if (status) { sql += ' AND n.status = ?'; params.push(status); }
+      if (featured) { sql += ' AND n.featured = 1'; }
+      sql += " AND n.status = 'approved' ORDER BY n.vote_count DESC, n.featured DESC, n.id ASC";
+      const [rows] = await pool.query(sql, params);
+      return rows;
+    });
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/featured', async (req, res) => {
+  try {
+    const rows = await cached('nominees:featured', 30, async () => {
+      const [rows] = await pool.query(
+        `SELECT n.id, n.full_name, n.slug, n.bio, n.photo_url, n.social_handle, n.followers_count,
+                n.nominee_code, n.vote_count, c.name AS category_name
+         FROM nominees n JOIN categories c ON n.category_id = c.id
+         WHERE n.featured = 1 AND n.status = 'approved'
+         ORDER BY n.vote_count DESC LIMIT 12`
+      );
+      return rows;
+    });
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/:id', async (req, res) => {
+  try {
+    const rows = await cached(`nominee:${req.params.id}`, 30, async () => {
+      const [rows] = await pool.query(
+        `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.description AS category_description
+         FROM nominees n JOIN categories c ON n.category_id = c.id WHERE n.id::text = ? OR n.slug = ? LIMIT 1`,
+        [req.params.id, req.params.id]
+      );
+      return rows;
+    });
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Nominee not found' });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+module.exports = router;

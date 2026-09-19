@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-ink-900 text-white antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Playfair Display', serif;
+  }
+  ::selection {
+    @apply bg-champagne-500 text-ink-900;
+  }
+}
+
+@layer components {
+  .gold-text {
+    background: linear-gradient(110deg, #d2a95c 20%, #f5edd7 40%, #c89143 60%, #f5edd7 80%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 3s linear infinite;
+  }
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl;
+  }
+  .btn-gold {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-ink-900
+      bg-gradient-to-r from-champagne-300 via-champagne-500 to-champagne-400
+      hover:from-champagne-200 hover:to-champagne-500 transition-all duration-300
+      shadow-lg shadow-champagne-500/30 hover:shadow-champagne-500/50 hover:-translate-y-0.5
+      min-h-[48px] text-base sm:text-[15px];
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-white
+      border border-white/20 hover:border-champagne-500 hover:text-champagne-400
+      transition-all duration-300 hover:-translate-y-0.5
+      min-h-[48px] text-base sm:text-[15px];
+  }
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-ink-800 border border-white/10 text-white text-base
+      placeholder-white/30 focus:outline-none focus:border-champagne-500 focus:ring-2 focus:ring-champagne-500/30
+      transition-all duration-300;
+  }
+  .section-title {
+    @apply text-3xl md:text-5xl font-bold text-white mb-4;
+  }
+  .section-subtitle {
+    @apply text-champagne-400 uppercase tracking-widest text-sm font-semibold mb-2;
+  }
+}
