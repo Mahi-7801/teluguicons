@@ -94,8 +94,8 @@ const ensureDatabase = async () => {
 };
 
 const startServer = () => {
-  const server = app.listen(PORT, () => {
-    console.log(`✓ Telugu Icon Awards API running on http://localhost:${PORT} (pid ${process.pid})`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✓ Telugu Icon Awards API running on http://0.0.0.0:${PORT} (pid ${process.pid})`);
   });
   server.keepAliveTimeout = 65000;
   server.headersTimeout = 66000;
