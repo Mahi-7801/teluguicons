@@ -18,10 +18,12 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+    const jwtSecret = process.env.JWT_SECRET || 'telugu_icon_awards_secret_key_2024_very_secure';
+    const jwtExpiresIn = process.env.JWT_EXPIRES_IN || '24h';
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      jwtSecret,
+      { expiresIn: jwtExpiresIn }
     );
     res.json({
       token,

@@ -6,7 +6,8 @@ const authenticate = (req, res, next) => {
     return res.status(401).json({ message: 'No token, authorization denied' });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'telugu_icon_awards_secret_key_2024_very_secure';
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = decoded;
     next();
   } catch (error) {
