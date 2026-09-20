@@ -52,6 +52,12 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const smsTemplateRoutes = require('./routes/smsTemplateRoutes');
+const ticketRoutes = require('./routes/ticketRoutes');
+const pastEventRoutes = require('./routes/pastEventRoutes');
+const awardeeRoutes = require('./routes/awardeeRoutes');
+const galleryRoutes = require('./routes/galleryRoutes');
+const mediaRoutes = require('./routes/mediaRoutes');
+const sponsorLeadRoutes = require('./routes/sponsorLeadRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -64,6 +70,12 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/sms-templates', smsTemplateRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/past-events', pastEventRoutes);
+app.use('/api/awardees', awardeeRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/media', mediaRoutes);
+app.use('/api/sponsor-leads', sponsorLeadRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Telugu Icon Awards API is running', db: process.env.DB_PORT, pid: process.pid });

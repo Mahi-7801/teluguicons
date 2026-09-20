@@ -74,7 +74,7 @@ export default function ContactPage() {
                 { icon: '🤝', label: 'Partnerships', value: 'partnerships@teluguiconawards.in' },
                 { icon: '📰', label: 'Media', value: 'media@teluguiconawards.in' },
                 { icon: '📞', label: 'Phone', value: '+91 XXXXX XXXXX' },
-                { icon: '📍', label: 'Venue', value: 'Shilpakala Vedika, Hyderabad' },
+                { icon: '📍', label: 'Venue', value: 'Hitex Exhibition Center, Hyderabad' },
                 { icon: '⏰', label: 'Response Time', value: 'Within 24-48 hours' },
               ].map((item) => (
                 <div key={item.label} className="glass-card p-5 flex items-start space-x-4">

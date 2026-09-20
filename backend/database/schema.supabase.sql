@@ -302,19 +302,20 @@ INSERT INTO public.settings (setting_key, setting_value, group_name) VALUES
 ('event_name', 'Telugu Icon Digital & Influencer Awards 2026', 'general'),
 ('event_tagline', 'Celebrating the Voices. Inspiring the Community. Shaping the Digital Future.', 'general'),
 ('event_logo_text', 'TELUGU ICON', 'general'),
-('event_date', '2026-11-16 10:00:00', 'event'),
-('event_venue', 'Shilpakala Vedika, Hyderabad', 'event'),
+('event_date', '2026-08-30 10:00:00', 'event'),
+('event_venue', 'Hitex Exhibition Center, Hyderabad', 'event'),
 ('nominations_open', '1', 'voting'),
 ('voting_open', '1', 'voting'),
 ('contact_email', 'info@teluguiconawards.in', 'contact'),
 ('contact_phone', '+91 94944 57274', 'contact'),
-('contact_address', 'Shilpakala Vedika, Hyderabad, Telangana', 'contact'),
+('contact_address', 'Hitex Exhibition Center, Hitec City, Hyderabad, Telangana', 'contact'),
 ('hero_headline', 'Celebrating the Icons of the Telugu Digital World', 'content'),
 ('hero_subheadline', 'Telugu Icon Digital & Influencer Awards 2026 — celebrating the voices shaping Telugu digital culture.', 'content'),
-('announcement', 'Self-nominations are now open for the Telugu Icon Digital & Influencer Awards 2026!', 'content'),
+('announcement', 'Nominations and 100% verified OTP voting are now open for Telugu Icon Awards 2026!', 'content'),
 ('vote_verification', 'otp', 'voting'),
-('otp_delivery', 'onsite', 'voting')
-ON CONFLICT (setting_key) DO NOTHING;
+('otp_delivery', 'onsite', 'voting'),
+('event_phase', 'phase_2', 'event')
+ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
 
 -- Sample Sponsor
 INSERT INTO public.sponsors (name, tier, website_url, tagline, sort_order) VALUES

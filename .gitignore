@@ -35,3 +35,5 @@ Thumbs.db
 # Internal project notes & prompt drafts
 mahi*.txt
 ui
+*.docx
+extracted_spec.txt

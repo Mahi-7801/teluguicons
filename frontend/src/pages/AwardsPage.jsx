@@ -137,8 +137,8 @@ export default function AwardsPage() {
           <div className="mt-10 glass-card p-6 max-w-3xl mx-auto text-center">
             <p className="text-white/60 text-sm leading-relaxed">
               👑 <strong className="text-white">Jury &amp; Special Recognition Awards</strong> are evaluated by the official jury on contribution,
-              influence, originality, impact and achievement — announced live on the grand night of
-              <span className="text-champagne-300"> 16 November 2026</span> at Shilpakala Vedika, Hyderabad.
+              influence, originality, impact and achievement — announced live at the grand gala ceremony on
+              <span className="text-champagne-300"> Sunday, August 30, 2026</span> at Hitex Exhibition Center, Hyderabad.
             </p>
           </div>
         </div>

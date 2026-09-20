@@ -271,4 +271,310 @@ router.put('/messages/:id/read', async (req, res) => {
   }
 });
 
+// ========== TICKETS ADMIN ==========
+router.get('/tickets', async (req, res) => {
+  try {
+    const [configs] = await pool.query('SELECT * FROM tickets ORDER BY session ASC, tier ASC');
+    const [orders] = await pool.query('SELECT * FROM ticket_orders ORDER BY id DESC LIMIT 300');
+    const [stats] = await pool.query(`
+      SELECT 
+        COUNT(*)::int AS total_orders,
+        COALESCE(SUM(quantity), 0)::int AS total_attendees,
+        COALESCE(SUM(price_paisa), 0)::bigint AS total_revenue_paisa,
+        COALESCE(SUM(is_checked_in), 0)::int AS total_checked_in
+      FROM ticket_orders WHERE payment_status = 'paid'
+    `);
+    res.json({
+      configs,
+      orders,
+      stats: stats[0] || { total_orders: 0, total_attendees: 0, total_revenue_paisa: 0, total_checked_in: 0 },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/tickets/:id/check-in', async (req, res) => {
+  try {
+    const { is_checked_in } = req.body;
+    const checkedInVal = is_checked_in ? 1 : 0;
+    const checkedAt = is_checked_in ? new Date() : null;
+    await pool.query(
+      'UPDATE ticket_orders SET is_checked_in = ?, checked_in_at = ? WHERE id = ?',
+      [checkedInVal, checkedAt, req.params.id]
+    );
+    res.json({ message: `Ticket order ${checkedInVal ? 'checked in' : 'unchecked'}` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/tickets/config/:id', async (req, res) => {
+  try {
+    const { inventory, price_paisa, availability, is_active } = req.body;
+    await pool.query(
+      `UPDATE tickets SET
+         inventory = COALESCE(?, inventory),
+         price_paisa = COALESCE(?, price_paisa),
+         availability = COALESCE(?, availability),
+         is_active = COALESCE(?, is_active),
+         updated_at = NOW()
+       WHERE id = ?`,
+      [inventory, price_paisa, availability, is_active === undefined ? null : is_active ? 1 : 0, req.params.id]
+    );
+    res.json({ message: 'Ticket config updated' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== PAST EVENTS & AWARDEES CRUD ==========
+router.get('/past-events', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM past_events ORDER BY sort_order ASC, year DESC');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/past-events', async (req, res) => {
+  try {
+    const { slug, name, event_date, year, venue, description, poster_url, sort_order, is_published } = req.body;
+    if (!slug || !name || !year) {
+      return res.status(400).json({ message: 'Slug, Name and Year are required' });
+    }
+    const [result] = await pool.query(
+      `INSERT INTO past_events (slug, name, event_date, year, venue, description, poster_url, sort_order, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [slug, name, event_date || null, year, venue || null, description || null, poster_url || null, sort_order || 0, is_published === 0 ? 0 : 1]
+    );
+    res.status(201).json({ message: 'Past event created', id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/past-events/:id', async (req, res) => {
+  try {
+    const { slug, name, event_date, year, venue, description, poster_url, sort_order, is_published } = req.body;
+    await pool.query(
+      `UPDATE past_events SET
+         slug = COALESCE(?, slug),
+         name = COALESCE(?, name),
+         event_date = COALESCE(?, event_date),
+         year = COALESCE(?, year),
+         venue = COALESCE(?, venue),
+         description = COALESCE(?, description),
+         poster_url = COALESCE(?, poster_url),
+         sort_order = COALESCE(?, sort_order),
+         is_published = COALESCE(?, is_published)
+       WHERE id = ?`,
+      [slug, name, event_date, year, venue, description, poster_url, sort_order, is_published, req.params.id]
+    );
+    res.json({ message: 'Past event updated' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/past-events/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM past_events WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Past event deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/awardees', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT a.*, pe.name AS event_name
+      FROM awardees a JOIN past_events pe ON a.past_event_id = pe.id
+      ORDER BY a.year DESC, a.id DESC LIMIT 200
+    `);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/awardees', async (req, res) => {
+  try {
+    const { past_event_id, name, category, award_type, photo_url, bio, social_handle, year } = req.body;
+    if (!past_event_id || !name || !category) {
+      return res.status(400).json({ message: 'past_event_id, name and category are required' });
+    }
+    const [result] = await pool.query(
+      `INSERT INTO awardees (past_event_id, name, category, award_type, photo_url, bio, social_handle, year)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [past_event_id, name, category, award_type || null, photo_url || null, bio || null, social_handle || null, year || 2025]
+    );
+    res.status(201).json({ message: 'Awardee added', id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/awardees/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM awardees WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Awardee removed' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== GALLERY CMS ==========
+router.get('/gallery', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM gallery_items ORDER BY id DESC LIMIT 200');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/gallery', async (req, res) => {
+  try {
+    const { category, item_type, url, thumbnail_url, title, description, sort_order, is_published } = req.body;
+    if (!url) return res.status(400).json({ message: 'URL is required' });
+    const [result] = await pool.query(
+      `INSERT INTO gallery_items (category, item_type, url, thumbnail_url, title, description, sort_order, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [category || 'general', item_type || 'image', url, thumbnail_url || null, title || null, description || null, sort_order || 0, is_published === 0 ? 0 : 1]
+    );
+    res.status(201).json({ message: 'Gallery item added', id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/gallery/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM gallery_items WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Gallery item deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== MEDIA CMS ==========
+router.get('/media', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM media_items ORDER BY id DESC LIMIT 200');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/media', async (req, res) => {
+  try {
+    const { item_type, title, description, url, thumbnail_url, source, published_date, sort_order, is_published } = req.body;
+    if (!title) return res.status(400).json({ message: 'Title is required' });
+    const [result] = await pool.query(
+      `INSERT INTO media_items (item_type, title, description, url, thumbnail_url, source, published_date, sort_order, is_published)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [item_type || 'press_release', title, description || null, url || null, thumbnail_url || null, source || null, published_date || new Date(), sort_order || 0, is_published === 0 ? 0 : 1]
+    );
+    res.status(201).json({ message: 'Media release added', id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/media/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM media_items WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Media release deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== SPONSOR LEADS ==========
+router.get('/sponsor-leads', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM sponsor_leads ORDER BY id DESC LIMIT 200');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/sponsor-leads/:id/read', async (req, res) => {
+  try {
+    await pool.query('UPDATE sponsor_leads SET is_read = 1 WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Sponsor lead marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== EVENT PHASE SWITCHER ==========
+router.put('/event-phase', async (req, res) => {
+  try {
+    const { phase } = req.body;
+    if (!['phase_1', 'phase_2', 'phase_3', 'phase_4', 'phase_5'].includes(phase)) {
+      return res.status(400).json({ message: 'Invalid phase value. Use phase_1 through phase_5' });
+    }
+    await pool.query(
+      `INSERT INTO settings (setting_key, setting_value, group_name)
+       VALUES ('event_phase', ?, 'event')
+       ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value`,
+      [phase]
+    );
+    res.json({ message: `Event phase switched to ${phase}`, phase });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== AUDIT LOGS ==========
+router.get('/audit-logs', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM audit_logs ORDER BY id DESC LIMIT 200');
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ========== VOTES EXPORT CSV ==========
+router.get('/votes/export', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT v.id, v.voter_name, v.voter_email, v.voter_phone, v.ip_address, v.is_flagged, v.flag_reason,
+             v.created_at, n.full_name AS nominee_name, c.name AS category_name
+      FROM votes v
+      JOIN nominees n ON v.nominee_id = n.id
+      JOIN categories c ON v.category_id = c.id
+      ORDER BY v.id DESC LIMIT 5000
+    `);
+    let csv = 'ID,Voter Name,Voter Email,Voter Phone,IP Address,Flagged,Flag Reason,Nominee,Category,Timestamp\n';
+    rows.forEach((r) => {
+      const line = [
+        r.id,
+        `"${(r.voter_name || '').replace(/"/g, '""')}"`,
+        `"${(r.voter_email || '').replace(/"/g, '""')}"`,
+        `"${(r.voter_phone || '').replace(/"/g, '""')}"`,
+        `"${(r.ip_address || '').replace(/"/g, '""')}"`,
+        r.is_flagged ? 'YES' : 'NO',
+        `"${(r.flag_reason || '').replace(/"/g, '""')}"`,
+        `"${(r.nominee_name || '').replace(/"/g, '""')}"`,
+        `"${(r.category_name || '').replace(/"/g, '""')}"`,
+        `"${r.created_at}"`,
+      ].join(',');
+      csv += line + '\n';
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="telugu-icon-votes.csv"');
+    res.send(csv);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

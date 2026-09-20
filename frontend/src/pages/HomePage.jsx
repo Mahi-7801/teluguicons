@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
+import EventPhaseCountdown from '../components/EventPhaseCountdown';
+import LiveLeaderboard from '../components/LiveLeaderboard';
 import { api } from '../api';
 
 const CATEGORIES = [
@@ -12,10 +14,10 @@ const CATEGORIES = [
 ];
 
 const STATS = [
-  { value: '50', label: 'Total Awards' },
-  { value: '40', label: 'Self-Nomination Categories' },
-  { value: '10', label: 'Jury & Special Recognition' },
-  { value: '1', label: 'Grand Celebration' },
+  { value: '40', label: "People's Choice Categories" },
+  { value: '10', label: 'Jury & Special Recognition Awards' },
+  { value: '2', label: 'Event Sessions' },
+  { value: '1', label: 'Creator-Driven Movement' },
 ];
 
 export default function HomePage() {
@@ -73,18 +75,23 @@ export default function HomePage() {
             <p className="text-white/60 text-lg sm:text-xl max-w-2xl mx-auto mb-10">
               {settings.hero_subheadline || 'The grand celebration of Telugu digital excellence, creators, and culture.'}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 flex-wrap">
               <Link to="/nominate" className="btn-gold">
-                Nominate Yourself
+                Self-Nominate
                 <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5-5 5M6 12h12" />
                 </svg>
               </Link>
-              <Link to="/vote" className="btn-outline">Vote for Your Icon</Link>
+              <Link to="/vote" className="btn-outline">Vote Now</Link>
+              <Link to="/tickets" className="btn-outline">Book Tickets</Link>
             </div>
             <p className="text-champagne-300 text-sm md:text-base font-semibold mb-4 tracking-wide">
-              📅 16 NOVEMBER 2026 &nbsp;•&nbsp; 📍 SHILPAKALA VEDIKA • HYDERABAD
+              📅 SUNDAY, AUGUST 30, 2026 &nbsp;•&nbsp; 📍 HITEX EXHIBITION CENTER, HYDERABAD
             </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center text-xs text-white/50 mb-4">
+              <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5">SESSION 1 · 10:00 AM – 2:00 PM · Complimentary Lunch</span>
+              <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5">SESSION 2 · 3:00 PM – 7:00 PM · Complimentary Dinner</span>
+            </div>
             {settings.announcement && (
               <div className="inline-flex items-center px-4 py-2 rounded-full bg-champagne-500/10 border border-champagne-500/30 text-champagne-300 text-sm">
                 <span className="w-2 h-2 bg-champagne-400 rounded-full animate-pulse mr-2" />
@@ -92,6 +99,13 @@ export default function HomePage() {
               </div>
             )}
           </motion.div>
+        </div>
+      </section>
+
+      {/* 5-Phase Countdown Banner */}
+      <section className="py-8 bg-ink-900 px-4">
+        <div className="max-w-5xl mx-auto">
+          <EventPhaseCountdown />
         </div>
       </section>
 
@@ -119,7 +133,7 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <p className="section-subtitle">The Awards</p>
-              <h2 className="section-title">More Than An Awards Night</h2>
+              <h2 className="section-title">The Digital Home of Telugu Creators</h2>
               <p className="text-white/60 leading-relaxed mb-8">
                 The Telugu Icon Digital & Influencer Awards is a celebration of the creators and influencers shaping
                 the Telugu digital world. From YouTube and Instagram to podcasts, technology, food, travel, education,
@@ -138,7 +152,7 @@ export default function HomePage() {
             <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-tr from-burgundy-800 to-champagne-600 rounded-3xl opacity-20 blur-2xl" />
               <div className="relative glass-card p-8">
-                <h3 className="font-display text-2xl font-bold gold-text mb-6 text-center">Countdown to the Big Night</h3>
+                <h3 className="font-display text-2xl font-bold gold-text mb-6 text-center">Countdown to the Awards Ceremony</h3>
                 <div className="grid grid-cols-4 gap-3">
                   {[
                     { v: countdown.days, l: 'Days' },
@@ -242,19 +256,19 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <p className="section-subtitle">The Experience</p>
-            <h2 className="section-title">One Night. A Thousand Stories. Fifty Icon Moments.</h2>
+            <h2 className="section-title">Two Sessions. One Historic Awards Ceremony.</h2>
             <p className="text-white/50 max-w-2xl mx-auto">
-              16 November 2026 at Shilpakala Vedika, Hyderabad — a cinematic celebration of Telugu digital culture.
+              Sunday, August 30, 2026 at Hitex Exhibition Center, Hyderabad — a cinematic celebration of Telugu digital culture across two sessions.
             </p>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { icon: '🔴', t: 'Red Carpet', d: 'The spotlight begins the moment the icons arrive.' },
-              { icon: '🌟', t: 'Creator Arrivals', d: 'Telugu digital\'s brightest walk the carpet.' },
-              { icon: '🎤', t: 'Live Awards', d: '50 awards presented live on the grand stage.' },
-              { icon: '🏆', t: 'Icon Moments', d: 'Unforgettable moments — captured forever.' },
-              { icon: '🎥', t: 'Media Wall', d: 'Flashes, interviews and press coverage all night.' },
-              { icon: '🥂', t: 'Celebration', d: 'A night of Telugu music, dance and culture.' },
+              { icon: '🕙', t: 'Session 1', d: '10:00 AM – 2:00 PM with Complimentary Lunch included.' },
+              { icon: '🌟', t: 'Creator Arrivals', d: 'Telugu digital\'s brightest creators walk the event carpet.' },
+              { icon: '🎤', t: 'Live Awards', d: '50 awards presented live across two grand sessions.' },
+              { icon: '🏆', t: 'Icon Moments', d: 'Unforgettable moments — captured and archived forever.' },
+              { icon: '🍽️', t: 'Session 2', d: '3:00 PM – 7:00 PM with Complimentary Dinner included.' },
+              { icon: '🥂', t: 'Community Celebration', d: 'A celebration of Telugu digital culture and community.' },
             ].map((m, i) => (
               <motion.div
                 key={m.t}
@@ -284,10 +298,24 @@ export default function HomePage() {
             The 2026 Telugu Icon Digital & Influencer Awards is your chance to be recognized on the biggest stage for
             Telugu digital talent.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/nominate" className="btn-gold">Nominate Yourself</Link>
-            <Link to="/sponsors" className="btn-outline">Become a Partner</Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
+            <Link to="/nominate" className="btn-gold">Self-Nominate</Link>
+            <Link to="/vote" className="btn-outline">Vote Now</Link>
+            <Link to="/tickets" className="btn-outline">Book Tickets</Link>
           </div>
+        </div>
+      </section>
+      {/* Live Leaderboard Section */}
+      <section className="py-20 bg-ink-950 border-t border-white/5">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="text-center mb-8">
+            <span className="section-subtitle">Real-time Verified Standings</span>
+            <h2 className="section-title">Audience Vote Leaderboard</h2>
+            <p className="text-white/50 text-sm max-w-xl mx-auto">
+              100% verified votes through Indian mobile OTP verification with anti-fraud auditing.
+            </p>
+          </div>
+          <LiveLeaderboard maxItems={8} showFilters={true} />
         </div>
       </section>
     </PageTransition>

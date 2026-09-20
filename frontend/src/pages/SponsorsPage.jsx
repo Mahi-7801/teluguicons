@@ -8,7 +8,7 @@ const TIERS = [
     key: 'title_partner',
     label: 'Title Partner',
     badge: '👑',
-    desc: 'The ultimate stage. Total branding ownership of the biggest Telugu digital awards night.',
+    desc: 'The ultimate stage. Total branding ownership of the Telugu Icon Digital & Influencer Awards Ceremony.',
     features: ['Stage naming rights', 'Red carpet branding', 'Full-campaign integration', 'Winner announcement rights'],
   },
   {
