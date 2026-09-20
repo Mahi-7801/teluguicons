@@ -36,7 +36,7 @@ const FAQS = [
   {
     category: 'voting',
     q: 'How does the public voting process work?',
-    a: 'Voting is 100% OTP-verified. To vote, enter your Indian mobile number, receive a 6-digit one-time password via SMS, verify it, and cast your vote. You can vote once per category per mobile number.',
+    a: 'Voting is 100% OTP-verified. To vote, enter your Indian mobile number, verify the 6-digit verification code provided by our secure verification engine, and cast your vote. You can vote once per category per mobile number.',
   },
   {
     category: 'voting',

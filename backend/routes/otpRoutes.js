@@ -3,23 +3,6 @@ const crypto = require('crypto');
 const { pool } = require('../config/database');
 const otpService = require('../services/otpService');
 
-async function resolveTemplateOptions() {
-  const [templates] = await pool.query(
-    'SELECT dlt_template_id FROM sms_templates WHERE is_active = 1 ORDER BY id DESC LIMIT 1'
-  );
-  const templateId = templates.length ? templates[0].dlt_template_id : undefined;
-  // Delivery mode is admin-controllable via settings.otp_delivery:
-  //   'onsite' -> OTP is generated locally and shown on the website (NO SMS).
-  //   'sms'    -> OTP is sent via MSG91 SMS (requires auth key + template).
-  //   'auto'   -> SMS if fully configured, otherwise show OTP on the website.
-  const [deliveryRows] = await pool.query(
-    "SELECT setting_value FROM settings WHERE setting_key = 'otp_delivery' LIMIT 1"
-  );
-  const delivery = deliveryRows.length ? deliveryRows[0].setting_value : 'auto';
-  const smsConfigured = !!(process.env.MSG91_AUTH_KEY && templateId);
-  const live = delivery === 'sms' ? smsConfigured : (delivery === 'onsite' ? false : smsConfigured);
-  return { templateId, live, delivery };
-}
 
 async function resolveVerificationMode() {
   const [rows] = await pool.query(
@@ -43,8 +26,7 @@ router.get('/mode', async (req, res) => {
 
 router.post('/send', async (req, res) => {
   try {
-    const options = await resolveTemplateOptions();
-    const result = await otpService.sendOtp(req.body.mobile, options);
+    const result = await otpService.sendOtp(req.body.mobile);
     res.json(result);
   } catch (error) {
     res.status(error.status || 500).json({ message: error.message || 'Failed to send OTP' });
@@ -53,8 +35,7 @@ router.post('/send', async (req, res) => {
 
 router.post('/resend', async (req, res) => {
   try {
-    const options = await resolveTemplateOptions();
-    const result = await otpService.resendOtp(req.body.mobile, options);
+    const result = await otpService.resendOtp(req.body.mobile);
     res.json(result);
   } catch (error) {
     res.status(error.status || 500).json({ message: error.message || 'Failed to resend OTP' });

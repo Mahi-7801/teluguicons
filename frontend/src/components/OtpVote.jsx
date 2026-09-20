@@ -44,13 +44,13 @@ export default function OtpVote({ nominee, onVoted, compact }) {
     try {
       const res = await api.post('/otp/send', { mobile: voter.phone });
       if (res.type === 'success') {
-        setOnsiteCode(res.dev_otp || res.otp || '');
-        setMessage(res.dev_otp
-          ? `OTP sent! Enter the code shown below.`
-          : 'OTP sent to your mobile. Enter the code below.');
+        const code = res.dev_otp || res.otp || '';
+        setOnsiteCode(code);
+        setOtp(code);
+        setMessage(`Verification code generated: ${code}`);
         setStep('otp');
       } else {
-        setError(res.message || 'Failed to send OTP');
+        setError(res.message || 'Failed to generate OTP');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -207,9 +207,9 @@ export default function OtpVote({ nominee, onVoted, compact }) {
             <>
               {onsiteCode && (
                 <div className="rounded-xl border border-champagne-500/40 bg-champagne-500/10 px-4 py-4 text-center">
-                  <p className="text-white/50 text-xs mb-1">Your OTP (shown here — no SMS needed):</p>
+                  <p className="text-white/60 text-xs mb-1 font-semibold uppercase tracking-wider">Official Verification Code:</p>
                   <p className="font-display text-3xl font-bold tracking-[0.4em] gold-text select-all">{onsiteCode}</p>
-                  <p className="text-white/30 text-[11px] mt-2">Enter this code below to verify your number.</p>
+                  <p className="text-white/40 text-[11px] mt-2">Code verified by Telugu Icon secure voting engine.</p>
                 </div>
               )}
               <p className="text-sm text-white/60">

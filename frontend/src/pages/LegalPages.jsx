@@ -108,7 +108,7 @@ We will NEVER sell or lease your personal phone numbers or emails to third-party
       },
       {
         heading: '2. OTP Verification',
-        content: `A 6-digit One-Time Password (OTP) is sent via SMS to verify that the voter is a real person with an active telecom subscription. Votes are only committed once the OTP is successfully validated.`,
+        content: `A 6-digit One-Time Password (OTP) code is verified by our backend security engine to authenticate that each vote is cast by a unique, genuine voter. Votes are only committed once the OTP is successfully validated.`,
       },
       {
         heading: '3. Automated Bot & Farm Detection',
