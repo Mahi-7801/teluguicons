@@ -1,0 +1,10 @@
+{
+  "name": "telugu-icon-awards",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telugu Icon Digital & Influencer Awards 2026",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm start"
+  }
+}
