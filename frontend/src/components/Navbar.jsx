@@ -1,23 +1,29 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const NAV_LINKS = [
+const CORE_LINKS = [
   { label: 'Home', path: '/' },
   { label: 'Categories', path: '/awards' },
-  { label: 'Nominate', path: '/nominate' },
+  { label: 'Nominees', path: '/nominees' },
   { label: 'Vote', path: '/vote' },
   { label: 'Tickets', path: '/tickets', badge: 'Live' },
-  { label: 'Nominees', path: '/nominees' },
-  { label: 'Past Events', path: '/past-events' },
-  { label: 'Gallery', path: '/gallery' },
-  { label: 'Media', path: '/media' },
-  { label: 'Partners', path: '/sponsors' },
-  { label: 'FAQ', path: '/faq' },
+];
+
+const EXPLORE_LINKS = [
+  { label: 'Past Events', path: '/past-events', icon: '🏛️', desc: 'Archive & past editions' },
+  { label: 'Photo Gallery', path: '/gallery', icon: '📸', desc: 'Event captures & red carpet' },
+  { label: 'Media & Press', path: '/media', icon: '📰', desc: 'Press releases & media assets' },
+  { label: 'Official Partners', path: '/sponsors', icon: '🤝', desc: 'Brand sponsors & partners' },
+  { label: 'FAQ & Rules', path: '/faq', icon: '❓', desc: 'Rules & voting guidelines' },
+  { label: 'About the Awards', path: '/about', icon: '📖', desc: 'Vision, jury & Pracharam Media' },
+  { label: 'Contact Us', path: '/contact', icon: '✉️', desc: 'Get in touch with committee' },
 ];
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const exploreRef = useRef(null);
   const location = useLocation();
 
   const isActive = (path) => {
@@ -25,59 +31,134 @@ export default function Navbar() {
     return location.pathname.startsWith(path);
   };
 
+  const isExploreActive = EXPLORE_LINKS.some((l) => location.pathname.startsWith(l.path));
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (exploreRef.current && !exploreRef.current.contains(e.target)) {
+        setExploreOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  // Close menus on route change
+  useEffect(() => {
+    setIsOpen(false);
+    setExploreOpen(false);
+  }, [location.pathname]);
+
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-ink-900/90 backdrop-blur-xl border-b border-white/5">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-ink-950/85 backdrop-blur-2xl border-b border-white/[0.08] shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2 shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-champagne-400 to-burgundy-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">TIA</span>
+            {/* Brand Logo */}
+            <Link to="/" className="flex items-center space-x-3 shrink-0 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-champagne-400 via-amber-500 to-burgundy-600 p-[1px] shadow-gold transition-transform duration-300 group-hover:scale-105">
+                <div className="w-full h-full bg-ink-950 rounded-[11px] flex items-center justify-center">
+                  <span className="font-display font-black text-xs text-champagne-400 tracking-wider">TIA</span>
+                </div>
               </div>
               <div className="hidden sm:block">
-                <span className="font-display text-champagne-400 font-bold text-base lg:text-lg leading-tight block">
+                <span className="font-display text-champagne-400 font-bold text-sm lg:text-base tracking-wide leading-none block">
                   TELUGU ICON
                 </span>
-                <span className="block text-white/40 text-[9px] lg:text-[10px] tracking-[0.2em] uppercase">
+                <span className="block text-white/40 text-[9px] tracking-[0.22em] uppercase font-sans mt-1">
                   Digital & Influencer Awards 2026
                 </span>
               </div>
             </Link>
 
-            {/* Desktop Nav Links */}
-            <div className="hidden xl:flex items-center space-x-0.5">
-              {NAV_LINKS.map((link) => (
+            {/* Desktop Navigation Links */}
+            <div className="hidden lg:flex items-center space-x-1 xl:space-x-2">
+              {CORE_LINKS.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs lg:text-sm font-medium transition-all duration-300 relative ${
+                  className={`px-3 py-1.5 rounded-xl text-xs xl:text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${
                     isActive(link.path)
-                      ? 'text-champagne-400 bg-champagne-500/10 font-bold'
-                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                      ? 'text-champagne-400 bg-champagne-500/15 font-semibold border border-champagne-500/30'
+                      : 'text-white/70 hover:text-white hover:bg-white/5 border border-transparent'
                   }`}
                 >
-                  {link.label}
+                  <span>{link.label}</span>
                   {link.badge && (
-                    <span className="ml-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-champagne-500 text-ink-950 uppercase">
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-gradient-to-r from-champagne-400 to-amber-500 text-ink-950 uppercase leading-none animate-pulse">
                       {link.badge}
                     </span>
                   )}
                 </Link>
               ))}
+
+              {/* Explore Dropdown */}
+              <div className="relative" ref={exploreRef}>
+                <button
+                  onClick={() => setExploreOpen(!exploreOpen)}
+                  onMouseEnter={() => setExploreOpen(true)}
+                  className={`px-3 py-1.5 rounded-xl text-xs xl:text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1.5 ${
+                    isExploreActive || exploreOpen
+                      ? 'text-champagne-400 bg-champagne-500/15 font-semibold border border-champagne-500/30'
+                      : 'text-white/70 hover:text-white hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span>Explore</span>
+                  <svg
+                    className={`w-3.5 h-3.5 transition-transform duration-200 ${exploreOpen ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                <AnimatePresence>
+                  {exploreOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      onMouseLeave={() => setExploreOpen(false)}
+                      className="absolute right-0 mt-2 w-64 rounded-2xl bg-ink-900/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-2 z-50 space-y-0.5"
+                    >
+                      {EXPLORE_LINKS.map((item) => (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setExploreOpen(false)}
+                          className={`flex items-start gap-3 px-3 py-2.5 rounded-xl text-xs transition-colors ${
+                            isActive(item.path)
+                              ? 'bg-champagne-500/15 text-champagne-400 font-semibold'
+                              : 'text-white/80 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
+                          <div>
+                            <div className="font-medium text-white">{item.label}</div>
+                            <div className="text-[10px] text-white/40 leading-tight mt-0.5">{item.desc}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             {/* CTAs */}
             <div className="flex items-center space-x-2 shrink-0">
               <Link
                 to="/tickets"
-                className="hidden sm:inline-flex px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-champagne-400 to-amber-500 text-ink-950 font-bold text-xs hover:opacity-95 shadow-gold transition-all"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-champagne-400 via-amber-400 to-champagne-500 text-ink-950 font-bold text-xs hover:shadow-gold hover:brightness-105 transition-all whitespace-nowrap"
               >
-                Book Tickets
+                <span>Book Tickets</span>
               </Link>
               <Link
                 to="/nominate"
-                className="hidden md:inline-flex btn-outline !py-1.5 !px-3 text-xs"
+                className="hidden md:inline-flex items-center justify-center px-3.5 py-2 rounded-xl text-xs font-semibold text-champagne-300 border border-champagne-500/40 hover:bg-champagne-500/10 hover:border-champagne-400 transition-all whitespace-nowrap"
               >
                 Nominate
               </Link>
@@ -85,10 +166,10 @@ export default function Navbar() {
               {/* Hamburger Mobile Toggle */}
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="xl:hidden p-2 text-white/60 hover:text-white rounded-lg bg-white/5 border border-white/10"
+                className="lg:hidden p-2 text-white/70 hover:text-white rounded-xl bg-white/5 border border-white/10 transition-colors"
                 aria-label="Toggle navigation menu"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   {isOpen ? (
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   ) : (
@@ -101,57 +182,117 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Slide-down Menu */}
+      {/* Mobile Slide-over Drawer */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 z-40 xl:hidden overflow-y-auto bg-ink-950/98 backdrop-blur-2xl pt-20 px-6 pb-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 lg:hidden"
           >
-            <div className="flex flex-col space-y-2 max-w-sm mx-auto">
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                <Link
-                  to="/tickets"
-                  onClick={() => setIsOpen(false)}
-                  className="py-3 text-center font-bold text-xs rounded-xl bg-champagne-500 text-ink-900 shadow-gold"
-                >
-                  🎟️ Book Tickets
-                </Link>
-                <Link
-                  to="/nominate"
-                  onClick={() => setIsOpen(false)}
-                  className="py-3 text-center font-bold text-xs rounded-xl bg-white/10 text-white border border-white/10"
-                >
-                  ⭐ Nominate
-                </Link>
+            <div
+              className="fixed inset-0 bg-black/80 backdrop-blur-md"
+              onClick={() => setIsOpen(false)}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 right-0 w-80 max-w-[85vw] bg-ink-900 border-l border-white/10 p-6 flex flex-col justify-between overflow-y-auto z-10 shadow-2xl"
+            >
+              <div className="space-y-6">
+                <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-champagne-400 to-burgundy-600 flex items-center justify-center font-bold text-ink-950 text-xs">
+                      TIA
+                    </div>
+                    <div>
+                      <div className="font-display text-champagne-400 font-bold text-xs">TELUGU ICON</div>
+                      <div className="text-[9px] text-white/40 uppercase">Awards 2026</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="w-8 h-8 rounded-lg bg-white/5 text-white/60 hover:text-white flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Primary Action Buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    to="/tickets"
+                    onClick={() => setIsOpen(false)}
+                    className="py-2.5 text-center font-bold text-xs rounded-xl bg-champagne-500 text-ink-950 shadow-gold"
+                  >
+                    🎟️ Tickets
+                  </Link>
+                  <Link
+                    to="/nominate"
+                    onClick={() => setIsOpen(false)}
+                    className="py-2.5 text-center font-bold text-xs rounded-xl bg-white/10 text-white border border-white/10"
+                  >
+                    ⭐ Nominate
+                  </Link>
+                </div>
+
+                {/* Core Navigation */}
+                <div className="space-y-1">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-white/30 px-3 pb-1">
+                    Main Menu
+                  </div>
+                  {CORE_LINKS.map((link) => (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      onClick={() => setIsOpen(false)}
+                      className={`w-full px-3.5 py-2.5 text-sm font-medium rounded-xl transition-all flex items-center justify-between ${
+                        isActive(link.path)
+                          ? 'text-champagne-400 bg-champagne-500/15 font-bold border border-champagne-500/20'
+                          : 'text-white/70 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{link.label}</span>
+                      {link.badge && (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-champagne-500 text-ink-950 uppercase">
+                          {link.badge}
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Explore Links */}
+                <div className="space-y-1 pt-2 border-t border-white/10">
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-white/30 px-3 pb-1">
+                    Explore More
+                  </div>
+                  {EXPLORE_LINKS.map((item) => (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setIsOpen(false)}
+                      className={`w-full px-3.5 py-2 text-xs font-medium rounded-xl transition-all flex items-center gap-3 ${
+                        isActive(item.path)
+                          ? 'text-champagne-400 bg-champagne-500/15 font-bold'
+                          : 'text-white/60 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
               </div>
 
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setIsOpen(false)}
-                  className={`w-full px-4 py-2.5 text-base font-medium rounded-xl transition-all flex items-center justify-between ${
-                    isActive(link.path)
-                      ? 'text-champagne-400 bg-champagne-500/10 font-bold border border-champagne-500/20'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <span>{link.label}</span>
-                  {link.badge && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-champagne-500 text-ink-950 uppercase">
-                      {link.badge}
-                    </span>
-                  )}
-                </Link>
-              ))}
-
-              <div className="pt-6 mt-4 border-t border-white/10 text-center text-xs text-white/40">
-                <span>August 30, 2026 • Hitex, Hyderabad</span>
+              <div className="pt-6 border-t border-white/10 text-center text-[11px] text-white/40">
+                Sunday, August 30, 2026<br />
+                <span className="text-champagne-400/70">Hitex Exhibition Center, Hyderabad</span>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
