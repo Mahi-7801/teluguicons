@@ -128,6 +128,17 @@ const main = async () => {
     // Start HTTP server immediately so Railway health checks pass instantly
     startServer();
 
+    // Railway keep-alive: Ping public healthcheck every 4 minutes to prevent idle sleep
+    const keepAliveUrl = process.env.PUBLIC_URL || 'https://awards-production-13eb.up.railway.app';
+    if (typeof fetch === 'function' && keepAliveUrl) {
+      setInterval(() => {
+        fetch(`${keepAliveUrl}/api/health`)
+          .then((r) => r.json())
+          .then(() => console.log('[keepalive] Ping sent to keep Railway awake'))
+          .catch(() => {});
+      }, 4 * 60 * 1000).unref();
+    }
+
     // Verify database connection asynchronously in background
     ensureDatabase().catch((err) => {
       console.error('Database connection check error:', err.message);
