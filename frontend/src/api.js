@@ -71,8 +71,26 @@ export const api = {
   },
 
   postMultipart: async (url, formData) => {
+    const token = localStorage.getItem('admin_token');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${API_BASE}${url}`, {
       method: 'POST',
+      headers,
+      body: formData,
+    });
+    return withStatus(res);
+  },
+
+  upload: async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const token = localStorage.getItem('admin_token');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/admin/upload`, {
+      method: 'POST',
+      headers,
       body: formData,
     });
     return withStatus(res);

@@ -1,8 +1,44 @@
 const router = require('express').Router();
+const path = require('path');
+const multer = require('multer');
 const { pool } = require('../config/database');
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads')),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, 'admin-' + unique + path.extname(file.originalname));
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|webp|gif|svg/i;
+    if (allowed.test(path.extname(file.originalname)) || (file.mimetype && file.mimetype.startsWith('image/'))) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
+
 router.use(authenticate, authorizeAdmin);
+
+// POST /api/admin/upload — Dedicated admin image upload endpoint
+router.post('/upload', upload.single('image'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No image file uploaded' });
+  }
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({
+    url: fileUrl,
+    filename: req.file.filename,
+    size: req.file.size,
+    message: 'Image uploaded successfully'
+  });
+});
 
 router.get('/stats', async (req, res) => {
   try {
@@ -117,6 +153,25 @@ router.get('/nominees', async (req, res) => {
   }
 });
 
+router.post('/nominees', async (req, res) => {
+  try {
+    const { full_name, category_id, bio, photo_url, social_handle, followers_count, featured } = req.body;
+    if (!full_name || !category_id) {
+      return res.status(400).json({ message: 'Full name and category are required' });
+    }
+    const slug = full_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+    const nomineeCode = 'TIA-' + Math.floor(1000 + Math.random() * 9000);
+    const [result] = await pool.query(
+      `INSERT INTO nominees (category_id, full_name, slug, bio, photo_url, social_handle, followers_count, featured, status, nominee_code, vote_count)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, 0)`,
+      [category_id, full_name, slug, bio || null, photo_url || null, social_handle || null, followers_count || null, featured ? 1 : 0, nomineeCode]
+    );
+    res.status(201).json({ message: 'Nominee created successfully', id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.put('/nominees/:id', async (req, res) => {
   try {
     const { full_name, bio, photo_url, social_handle, followers_count, featured, status, category_id } = req.body;
@@ -193,13 +248,13 @@ router.get('/sponsors', async (req, res) => {
 
 router.post('/sponsors', async (req, res) => {
   try {
-    const { name, tier, website_url, tagline, sort_order } = req.body;
+    const { name, tier, logo_url, website_url, tagline, sort_order } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Sponsor name is required' });
     }
     const [result] = await pool.query(
-      'INSERT INTO sponsors (name, tier, website_url, tagline, sort_order) VALUES (?, ?, ?, ?, ?)',
-      [name, tier || 'gold', website_url || null, tagline || null, sort_order || 0]
+      'INSERT INTO sponsors (name, tier, logo_url, website_url, tagline, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, tier || 'gold', logo_url || null, website_url || null, tagline || null, sort_order || 0]
     );
     res.status(201).json({ message: 'Sponsor created', id: result.insertId });
   } catch (error) {
@@ -209,10 +264,10 @@ router.post('/sponsors', async (req, res) => {
 
 router.put('/sponsors/:id', async (req, res) => {
   try {
-    const { name, tier, website_url, tagline, is_active, sort_order } = req.body;
+    const { name, tier, logo_url, website_url, tagline, is_active, sort_order } = req.body;
     await pool.query(
-      'UPDATE sponsors SET name = COALESCE(?, name), tier = COALESCE(?, tier), website_url = COALESCE(?, website_url), tagline = COALESCE(?, tagline), is_active = COALESCE(?, is_active), sort_order = COALESCE(?, sort_order) WHERE id = ?',
-      [name, tier, website_url, tagline, is_active === undefined ? null : is_active ? 1 : 0, sort_order, req.params.id]
+      'UPDATE sponsors SET name = COALESCE(?, name), tier = COALESCE(?, tier), logo_url = COALESCE(?, logo_url), website_url = COALESCE(?, website_url), tagline = COALESCE(?, tagline), is_active = COALESCE(?, is_active), sort_order = COALESCE(?, sort_order) WHERE id = ?',
+      [name, tier, logo_url, website_url, tagline, is_active === undefined ? null : is_active ? 1 : 0, sort_order, req.params.id]
     );
     res.json({ message: 'Sponsor updated' });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { api } from '../../api';
+import { api, getAssetUrl } from '../../api';
+import ImageUploader from '../../components/ImageUploader';
 
 const TABS = [
   { key: '', label: 'Dashboard', icon: '📊' },
@@ -433,10 +434,24 @@ function NominationsTab() {
 
 function NomineesTab() {
   const [nominees, setNominees] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [message, setMessage] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPhotoNominee, setEditingPhotoNominee] = useState(null);
+  const [newNominee, setNewNominee] = useState({
+    full_name: '',
+    category_id: '',
+    social_handle: '',
+    photo_url: '',
+    bio: '',
+    featured: false,
+  });
 
   const load = () => {
     api.get('/admin/nominees').then(setNominees).catch(() => {});
+    api.get('/categories').then((cats) => {
+      if (Array.isArray(cats)) setCategories(cats);
+    }).catch(() => {});
   };
   useEffect(load, []);
 
@@ -455,13 +470,145 @@ function NomineesTab() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleCreateNominee = async (e) => {
+    e.preventDefault();
+    if (!newNominee.full_name || !newNominee.category_id) {
+      setMessage({ type: 'error', text: 'Name and category are required' });
+      return;
+    }
+    const res = await api.post('/admin/nominees', newNominee);
+    setMessage({ type: 'success', text: res.message || 'Nominee created!' });
+    setNewNominee({ full_name: '', category_id: '', social_handle: '', photo_url: '', bio: '', featured: false });
+    setShowAddModal(false);
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleUpdatePhoto = async (nomineeId, photoUrl) => {
+    const res = await api.put(`/admin/nominees/${nomineeId}`, { photo_url: photoUrl });
+    setMessage({ type: 'success', text: res.message || 'Photo updated!' });
+    setEditingPhotoNominee(null);
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl font-bold text-white">Nominees Directory</h2>
+          <p className="text-white/40 text-xs mt-1">Manage active nominees, award categories, and profile photos.</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(!showAddModal)}
+          className="btn-gold !py-2 text-xs"
+        >
+          {showAddModal ? '✕ Cancel' : '+ Add Nominee'}
+        </button>
+      </div>
+
       {message && (
-        <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">
+        <div className={`px-4 py-3 rounded-xl text-sm ${message.type === 'error' ? 'bg-red-900/40 border border-red-500/40 text-red-200' : 'bg-emerald-900/30 border border-emerald-500/40 text-emerald-200'}`}>
           {message.text}
         </div>
       )}
+
+      {/* Add Nominee Modal / Inline Form */}
+      {showAddModal && (
+        <div className="glass-card p-6 border-champagne-500/30">
+          <h3 className="text-sm font-bold text-champagne-300 uppercase tracking-wider mb-4">Create New Nominee</h3>
+          <form onSubmit={handleCreateNominee} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block text-white/70 mb-1 font-medium">Full Name *</label>
+              <input
+                type="text"
+                placeholder="Creator / Influencer Name"
+                value={newNominee.full_name}
+                onChange={(e) => setNewNominee({ ...newNominee, full_name: e.target.value })}
+                required
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-white/70 mb-1 font-medium">Category *</label>
+              <select
+                value={newNominee.category_id}
+                onChange={(e) => setNewNominee({ ...newNominee, category_id: e.target.value })}
+                required
+                className="input-field"
+              >
+                <option value="">Select Category...</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-white/70 mb-1 font-medium">Social Handle / Channel</label>
+              <input
+                type="text"
+                placeholder="@instagram_handle or YouTube channel"
+                value={newNominee.social_handle}
+                onChange={(e) => setNewNominee({ ...newNominee, social_handle: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <label className="flex items-center gap-2 cursor-pointer text-white/80">
+                <input
+                  type="checkbox"
+                  checked={newNominee.featured}
+                  onChange={(e) => setNewNominee({ ...newNominee, featured: e.target.checked })}
+                  className="rounded text-champagne-500"
+                />
+                Mark as Featured Nominee
+              </label>
+            </div>
+            <div className="md:col-span-2">
+              <ImageUploader
+                label="Nominee Profile Photo (Upload File)"
+                value={newNominee.photo_url}
+                onChange={(url) => setNewNominee({ ...newNominee, photo_url: url })}
+              />
+            </div>
+            <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 text-white/70 text-xs"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn-gold !py-2 text-xs">
+                Save Nominee
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Quick Edit Photo Modal */}
+      {editingPhotoNominee && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card max-w-md w-full p-6 space-y-4 border border-champagne-500/40">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-sm">Upload Photo for {editingPhotoNominee.full_name}</h3>
+              <button onClick={() => setEditingPhotoNominee(null)} className="text-white/60 hover:text-white">✕</button>
+            </div>
+            <ImageUploader
+              label="Choose New Photo"
+              value={editingPhotoNominee.photo_url || ''}
+              onChange={(url) => {
+                if (url) handleUpdatePhoto(editingPhotoNominee.id, url);
+              }}
+            />
+            <div className="text-right">
+              <button onClick={() => setEditingPhotoNominee(null)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -478,17 +625,36 @@ function NomineesTab() {
             </thead>
             <tbody>
               {nominees.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-white/40">No nominees yet. Approve nominations to create nominees.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-white/40">No nominees yet. Click "+ Add Nominee" to create one.</td></tr>
               ) : (
                 nominees.map((n) => (
                   <tr key={n.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                     <td className="px-4 py-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-ink-700 to-burgundy-900 flex items-center justify-center overflow-hidden shrink-0">
-                          {n.photo_url ? <img src={n.photo_url} className="w-full h-full object-cover" alt="" /> : <span className="text-xs">🏆</span>}
+                        <div
+                          onClick={() => setEditingPhotoNominee(n)}
+                          title="Click to change photo"
+                          className="w-10 h-10 rounded-lg bg-gradient-to-br from-ink-700 to-burgundy-900 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:ring-2 hover:ring-champagne-400 transition-all group relative"
+                        >
+                          {n.photo_url ? (
+                            <img src={getAssetUrl(n.photo_url)} className="w-full h-full object-cover" alt="" />
+                          ) : (
+                            <span className="text-xs">🏆</span>
+                          )}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-white font-bold">
+                            📷
+                          </div>
                         </div>
                         <div>
-                          <div className="font-medium text-white">{n.full_name}</div>
+                          <div className="font-medium text-white flex items-center gap-1.5">
+                            <span>{n.full_name}</span>
+                            <button
+                              onClick={() => setEditingPhotoNominee(n)}
+                              className="text-[10px] text-champagne-400/80 hover:text-champagne-300 underline font-normal"
+                            >
+                              (change photo)
+                            </button>
+                          </div>
                           <div className="text-white/30 text-xs">{n.social_handle || ''}</div>
                         </div>
                       </div>
@@ -511,7 +677,8 @@ function NomineesTab() {
                       </button>
                     </td>
                     <td className="px-4 py-4 text-right space-x-2 whitespace-nowrap">
-                      <a href={`/nominee/${n.id}`} target="_blank" rel="noreferrer" className="text-champagne-400 hover:text-champagne-300 text-xs font-medium">View ↗</a>
+                      <button onClick={() => setEditingPhotoNominee(n)} className="text-xs text-champagne-400 hover:text-champagne-300 font-medium">Photo 📷</button>
+                      <a href={`/nominee/${n.id}`} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white text-xs font-medium">View ↗</a>
                       <button onClick={() => toggleStatus(n)} className="text-white/40 hover:text-white text-xs font-medium">{n.status === 'approved' ? 'Archive' : 'Activate'}</button>
                     </td>
                   </tr>
@@ -670,7 +837,7 @@ function VotesTab() {
 
 function SponsorsTab() {
   const [sponsors, setSponsors] = useState([]);
-  const [form, setForm] = useState({ name: '', tier: 'gold', website_url: '', tagline: '' });
+  const [form, setForm] = useState({ name: '', tier: 'gold', website_url: '', tagline: '', logo_url: '' });
   const [message, setMessage] = useState(null);
 
   const load = () => {
@@ -682,7 +849,7 @@ function SponsorsTab() {
     e.preventDefault();
     const res = await api.post('/admin/sponsors', form);
     setMessage({ type: 'success', text: res.message || 'Sponsor created' });
-    setForm({ name: '', tier: 'gold', website_url: '', tagline: '' });
+    setForm({ name: '', tier: 'gold', website_url: '', tagline: '', logo_url: '' });
     load();
     setTimeout(() => setMessage(null), 3000);
   };
@@ -705,17 +872,30 @@ function SponsorsTab() {
         <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">{message.text}</div>
       )}
       <div className="glass-card p-6">
-        <h2 className="font-display text-xl font-bold text-white mb-4">Add Sponsor</h2>
-        <form onSubmit={createSponsor} className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Sponsor name" className="input-field" required />
-          <select value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })} className="input-field">
-            {['title_partner', 'powered_by', 'co_powered_by', 'gold', 'silver', 'category_partner', 'media_partner', 'digital_partner', 'travel_partner'].map((t) => (
-              <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
-            ))}
-          </select>
-          <input type="url" value={form.website_url} onChange={(e) => setForm({ ...form, website_url: e.target.value })} placeholder="Website URL" className="input-field" />
-          <input type="text" value={form.tagline} onChange={(e) => setForm({ ...form, tagline: e.target.value })} placeholder="Tagline" className="input-field" />
-          <button type="submit" className="btn-gold">Add</button>
+        <h2 className="font-display text-xl font-bold text-white mb-4">Add Official Brand Partner</h2>
+        <form onSubmit={createSponsor} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Sponsor Brand Name *" className="input-field" required />
+            <select value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })} className="input-field">
+              {['title_partner', 'powered_by', 'co_powered_by', 'gold', 'silver', 'category_partner', 'media_partner', 'digital_partner', 'travel_partner'].map((t) => (
+                <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            <input type="url" value={form.website_url} onChange={(e) => setForm({ ...form, website_url: e.target.value })} placeholder="Website URL (optional)" className="input-field" />
+            <input type="text" value={form.tagline} onChange={(e) => setForm({ ...form, tagline: e.target.value })} placeholder="Tagline (optional)" className="input-field" />
+          </div>
+
+          <div>
+            <ImageUploader
+              label="Brand Partner Logo (Upload File)"
+              value={form.logo_url}
+              onChange={(url) => setForm({ ...form, logo_url: url })}
+            />
+          </div>
+
+          <div className="text-right">
+            <button type="submit" className="btn-gold !py-2.5 text-xs">+ Save Sponsor</button>
+          </div>
         </form>
       </div>
       <div className="glass-card">
@@ -723,7 +903,7 @@ function SponsorsTab() {
           <table className="w-full text-sm">
             <thead className="bg-ink-800/50">
               <tr className="text-white/40 text-xs uppercase">
-                <th className="px-4 py-4 text-left">Name</th>
+                <th className="px-4 py-4 text-left">Brand</th>
                 <th className="px-4 py-4 text-left">Tier</th>
                 <th className="px-4 py-4 text-left">Website</th>
                 <th className="px-4 py-4 text-left">Active</th>
@@ -736,7 +916,23 @@ function SponsorsTab() {
               ) : (
                 sponsors.map((s) => (
                   <tr key={s.id} className="border-t border-white/5 hover:bg-white/[0.02]">
-                    <td className="px-4 py-4 text-white font-medium">{s.name}</td>
+                    <td className="px-4 py-4 text-white font-medium">
+                      <div className="flex items-center gap-3">
+                        {s.logo_url ? (
+                          <div className="w-10 h-10 rounded-lg bg-white/5 p-1 border border-white/10 flex items-center justify-center shrink-0">
+                            <img src={getAssetUrl(s.logo_url)} className="max-w-full max-h-full object-contain" alt="" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-xs text-white/40 shrink-0">
+                            🤝
+                          </div>
+                        )}
+                        <div>
+                          <div>{s.name}</div>
+                          {s.tagline && <div className="text-[10px] text-white/40">{s.tagline}</div>}
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-4">
                       <span className="px-2.5 py-1 rounded-full bg-champagne-500/15 text-champagne-400 text-xs">{s.tier.replace('_', ' ')}</span>
                     </td>
@@ -1163,18 +1359,18 @@ function PastEventsTab() {
               />
               <input
                 type="text"
-                placeholder="Poster Image URL"
-                value={newEvent.poster_url}
-                onChange={(e) => setNewEvent({ ...newEvent, poster_url: e.target.value })}
-                className="input-field"
-              />
-              <input
-                type="text"
                 placeholder="Brief Description"
                 value={newEvent.description}
                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                className="input-field"
+                className="input-field md:col-span-2"
               />
+              <div className="md:col-span-3">
+                <ImageUploader
+                  label="Event Poster Image (Upload File)"
+                  value={newEvent.poster_url}
+                  onChange={(url) => setNewEvent({ ...newEvent, poster_url: url })}
+                />
+              </div>
               <div className="md:col-span-3">
                 <button type="submit" className="btn-gold !py-2.5 text-xs">+ Save Past Event</button>
               </div>
@@ -1185,15 +1381,20 @@ function PastEventsTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {events.map((ev) => (
               <div key={ev.id} className="glass-card p-5 flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-xs font-bold text-champagne-400 uppercase">{ev.year} • {ev.slug}</div>
-                  <h4 className="font-display font-bold text-white text-base mt-1">{ev.name}</h4>
-                  <div className="text-xs text-white/50 mt-1">{ev.venue}</div>
-                  {ev.description && <p className="text-xs text-white/40 mt-2 line-clamp-2">{ev.description}</p>}
+                <div className="flex gap-3">
+                  {ev.poster_url && (
+                    <img src={getAssetUrl(ev.poster_url)} alt="" className="w-16 h-20 object-cover rounded-lg shrink-0 border border-white/10" />
+                  )}
+                  <div>
+                    <div className="text-xs font-bold text-champagne-400 uppercase">{ev.year} • {ev.slug}</div>
+                    <h4 className="font-display font-bold text-white text-base mt-1">{ev.name}</h4>
+                    <div className="text-xs text-white/50 mt-1">{ev.venue}</div>
+                    {ev.description && <p className="text-xs text-white/40 mt-2 line-clamp-2">{ev.description}</p>}
+                  </div>
                 </div>
                 <button
                   onClick={() => handleDeleteEvent(ev.id)}
-                  className="px-3 py-1.5 rounded-lg bg-red-900/30 text-red-300 border border-red-500/30 text-xs hover:bg-red-900/50"
+                  className="px-3 py-1.5 rounded-lg bg-red-900/30 text-red-300 border border-red-500/30 text-xs hover:bg-red-900/50 shrink-0"
                 >
                   Delete
                 </button>
@@ -1220,7 +1421,7 @@ function PastEventsTab() {
               </select>
               <input
                 type="text"
-                placeholder="Awardee Name"
+                placeholder="Awardee Name *"
                 value={newAwardee.name}
                 onChange={(e) => setNewAwardee({ ...newAwardee, name: e.target.value })}
                 required
@@ -1228,7 +1429,7 @@ function PastEventsTab() {
               />
               <input
                 type="text"
-                placeholder="Category Name"
+                placeholder="Category Name *"
                 value={newAwardee.category}
                 onChange={(e) => setNewAwardee({ ...newAwardee, category: e.target.value })}
                 required
@@ -1248,13 +1449,13 @@ function PastEventsTab() {
                 onChange={(e) => setNewAwardee({ ...newAwardee, year: e.target.value })}
                 className="input-field"
               />
-              <input
-                type="text"
-                placeholder="Photo URL"
-                value={newAwardee.photo_url}
-                onChange={(e) => setNewAwardee({ ...newAwardee, photo_url: e.target.value })}
-                className="input-field"
-              />
+              <div className="md:col-span-3">
+                <ImageUploader
+                  label="Winner Photo (Upload File)"
+                  value={newAwardee.photo_url}
+                  onChange={(url) => setNewAwardee({ ...newAwardee, photo_url: url })}
+                />
+              </div>
               <div className="md:col-span-3">
                 <button type="submit" className="btn-gold !py-2.5 text-xs">+ Save Awardee</button>
               </div>
@@ -1276,7 +1477,16 @@ function PastEventsTab() {
               <tbody className="divide-y divide-white/5 text-white/80">
                 {awardees.map((aw) => (
                   <tr key={aw.id} className="hover:bg-white/5">
-                    <td className="py-2.5 pr-4 font-bold text-white">{aw.name}</td>
+                    <td className="py-2.5 pr-4 font-bold text-white">
+                      <div className="flex items-center gap-2.5">
+                        {aw.photo_url ? (
+                          <img src={getAssetUrl(aw.photo_url)} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs shrink-0">🏅</div>
+                        )}
+                        <span>{aw.name}</span>
+                      </div>
+                    </td>
                     <td className="py-2.5 pr-4 text-champagne-400">{aw.category}</td>
                     <td className="py-2.5 pr-4">{aw.event_name || 'Past Event'} ({aw.year})</td>
                     <td className="py-2.5 pr-4 font-medium">{aw.award_type || 'Winner'}</td>
@@ -1402,21 +1612,21 @@ function MediaTab() {
               </select>
               <input
                 type="text"
-                placeholder="Image URL"
-                value={newGallery.url}
-                onChange={(e) => setNewGallery({ ...newGallery, url: e.target.value })}
-                required
-                className="input-field"
-              />
-              <input
-                type="text"
-                placeholder="Title / Caption"
+                placeholder="Title / Caption (optional)"
                 value={newGallery.title}
                 onChange={(e) => setNewGallery({ ...newGallery, title: e.target.value })}
-                className="input-field"
+                className="input-field md:col-span-2"
               />
               <div className="md:col-span-3">
-                <button type="submit" className="btn-gold !py-2 text-xs">+ Add Image</button>
+                <ImageUploader
+                  label="Gallery Image (Upload File)"
+                  value={newGallery.url}
+                  onChange={(url) => setNewGallery({ ...newGallery, url })}
+                  required
+                />
+              </div>
+              <div className="md:col-span-3">
+                <button type="submit" className="btn-gold !py-2 text-xs">+ Add Image to Gallery</button>
               </div>
             </form>
           </div>
@@ -1424,7 +1634,7 @@ function MediaTab() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {gallery.map((item) => (
               <div key={item.id} className="relative group rounded-xl overflow-hidden border border-white/10 bg-ink-800">
-                <img src={item.url} alt={item.title || 'Gallery'} className="w-full h-36 object-cover" />
+                <img src={getAssetUrl(item.url)} alt={item.title || 'Gallery'} className="w-full h-36 object-cover" />
                 <div className="p-2.5">
                   <div className="text-[10px] text-champagne-400 uppercase truncate">{item.category}</div>
                   <div className="text-xs font-bold text-white truncate">{item.title || 'Photo'}</div>
