@@ -28,25 +28,25 @@ export default function VideoHubPage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <p className="section-subtitle">Watch the Journey</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Video</span> <span className="text-white">Hub</span>
           </h1>
-          <p className="text-white/60">Event highlights, creator stories, nominee videos, and more.</p>
+          <p className="text-white/60 text-xs sm:text-base leading-relaxed">Event highlights, creator stories, nominee videos, and more.</p>
         </div>
       </section>
 
-      <section className="py-12 bg-ink-900">
+      <section className="py-10 sm:py-12 bg-ink-900">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-wrap gap-2 mb-8 justify-center">
+          <div className="flex flex-wrap gap-2 mb-6 sm:mb-8 justify-center">
             {VIDEO_CATS.map((c) => (
               <button
                 key={c.key}
                 onClick={() => setFilter(c.key)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
+                className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-300 ${
                   filter === c.key ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 border border-white/10 hover:border-champagne-500/40'
                 }`}
               >

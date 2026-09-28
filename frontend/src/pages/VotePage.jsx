@@ -33,31 +33,31 @@ export default function VotePage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <p className="section-subtitle">Your Voice. Your Vote. Your Icon.</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
-            <span className="gold-text">Vote</span> <span className="text-white">for Your Icon</span>
+        <div className="relative max-w-4xl mx-auto text-center">
+          <p className="section-subtitle">10 October – 15 November 2026</p>
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
+            <span className="gold-text">Every Vote Counts.</span> <span className="text-white">Every Vote Is Visible.</span>
           </h1>
-          <p className="text-white/60">
-            Choose a category, support your favourite shortlisted creator, and verify with OTP to cast your vote.
+          <p className="text-white/60 max-w-2xl mx-auto text-xs sm:text-base leading-relaxed">
+            Public voting opens October 10 and closes November 15 at 11:59 PM. Verified vote counts are publicly displayed through November 11. From November 12, public totals are hidden while voting continues securely.
           </p>
         </div>
       </section>
 
-      <section className="py-16 bg-ink-900">
+      <section className="py-10 sm:py-16 bg-ink-900">
         <div className="max-w-4xl mx-auto px-4">
           {votedNominee ? (
-            <div className="glass-card p-8">
+            <div className="glass-card p-5 sm:p-8">
               <div className="text-center">
-                <div className="text-6xl mb-4">🏆</div>
-                <h2 className="font-display text-3xl font-bold gold-text mb-3">YOUR VOICE. YOUR ICON.</h2>
-                <p className="text-white/60 mb-6">
+                <div className="text-5xl sm:text-6xl mb-3 sm:mb-4">🏆</div>
+                <h2 className="font-display text-xl sm:text-3xl font-bold gold-text mb-2 sm:mb-3">YOUR VOICE. YOUR ICON.</h2>
+                <p className="text-white/60 text-xs sm:text-base mb-6">
                   You voted for <span className="text-champagne-400 font-semibold">{votedNominee}</span> in the
                   Telugu Icon Digital & Influencer Awards 2026.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                   <button onClick={() => setVotedNominee(null)} className="btn-gold">Vote in Another Category</button>
                   <a href="/nominees" className="btn-outline">Explore Nominees</a>
                 </div>
@@ -65,14 +65,14 @@ export default function VotePage() {
             </div>
           ) : (
             <>
-              <div className="glass-card p-6 sm:p-8 mb-6">
-                <label className="block text-sm text-white/60 mb-2">Select Category</label>
+              <div className="glass-card p-4 sm:p-6 md:p-8 mb-4 sm:mb-6">
+                <label className="block text-xs sm:text-sm text-white/60 mb-2">Select Category</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 max-h-72 overflow-y-auto pr-2">
                   {categories.map((c) => (
                     <button
                       key={c.id}
                       onClick={() => setSelectedCategory(c.id)}
-                      className={`text-left px-4 py-3 rounded-xl border text-sm transition-all duration-300 ${
+                      className={`text-left px-3 py-2 sm:px-4 sm:py-3 rounded-xl border text-xs sm:text-sm transition-all duration-300 ${
                         selectedCategory === c.id
                           ? 'border-champagne-500 bg-champagne-500/10 text-champagne-300'
                           : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white'
@@ -153,7 +153,7 @@ export default function VotePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: '🎯', t: 'Select a Category', d: 'Pick one of the 40 People\'s Choice categories that\'s open for voting.' },
+              { icon: '🎯', t: 'Select a Category', d: 'Pick one of the 50 People\'s Choice categories open for public voting.' },
               { icon: '⭐', t: 'Choose Your Creator', d: 'Browse the shortlisted nominees and pick the creator you want to support.' },
               { icon: '📱', t: 'Enter Your Mobile', d: 'A valid 10-digit Indian mobile number is required to verify each vote.' },
               { icon: '🔐', t: 'Verify with OTP', d: 'Receive a one-time code and confirm that you\'re a real, unique voter.' },

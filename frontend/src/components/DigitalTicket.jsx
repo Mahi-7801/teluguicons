@@ -41,10 +41,10 @@ export default function DigitalTicket({ order, onDismiss }) {
           Official Digital Gate Pass
         </div>
         <h3 className="font-display text-xl font-bold tracking-tight">
-          TELUGU ICON AWARDS 2026
+          TELUGU ICON DIGITAL &amp; INFLUENCER AWARDS 2026
         </h3>
         <div className="text-xs font-semibold mt-1">
-          Sunday, August 30, 2026 • Hitex, Hyderabad
+          16 November 2026 • Shilpakala Vedika, Hyderabad
         </div>
       </div>
 

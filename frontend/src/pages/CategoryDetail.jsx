@@ -39,11 +39,11 @@ export default function CategoryDetail() {
   return (
     <PageTransition>
       {/* Category Hero */}
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-5xl mx-auto px-4">
+        <div className="relative max-w-5xl mx-auto">
           {/* Breadcrumbs */}
-          <nav className="flex items-center space-x-2 text-xs md:text-sm text-white/40 mb-6">
+          <nav className="flex items-center space-x-2 text-xs md:text-sm text-white/40 mb-4 sm:mb-6">
             <Link to="/" className="hover:text-champagne-400">Home</Link>
             <span>/</span>
             <Link to="/awards" className="hover:text-champagne-400">Categories</Link>
@@ -55,35 +55,35 @@ export default function CategoryDetail() {
             <div className="py-12 text-center text-white/40">Loading category details...</div>
           ) : (
             <div>
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <span className="text-3xl">{category?.icon || '🏆'}</span>
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-champagne-500/10 text-champagne-400 border border-champagne-500/20 uppercase tracking-wider">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <span className="text-2xl sm:text-3xl">{category?.icon || '🏆'}</span>
+                <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-champagne-500/10 text-champagne-400 border border-champagne-500/20 uppercase tracking-wider">
                   {category?.type === 'jury' ? 'Grand Jury Selection' : "People's Choice (Public Vote)"}
                 </span>
                 {category?.voting_open !== false && (
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                  <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     Live Voting Active
                   </span>
                 )}
               </div>
 
-              <h1 className="font-display text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">
+              <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-3 sm:mb-4 leading-tight">
                 {category?.name || slug.replace(/-/g, ' ').toUpperCase()}
               </h1>
-              <p className="text-white/60 text-base md:text-lg max-w-3xl leading-relaxed mb-6">
+              <p className="text-white/60 text-xs sm:text-base md:text-lg max-w-3xl leading-relaxed mb-6">
                 {category?.description || 'Honoring the most engaging, creative, and impactful Telugu digital creators shaping the landscape in this category.'}
               </p>
 
               {/* Category Sponsor Strip */}
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-champagne-500/10 border border-champagne-500/30 flex items-center justify-center text-champagne-400 text-lg">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-champagne-500/10 border border-champagne-500/30 flex items-center justify-center text-champagne-400 text-base sm:text-lg">
                     ⭐
                   </div>
                   <div>
-                    <div className="text-xs text-white/40 uppercase tracking-wider font-semibold">Category Partner</div>
-                    <div className="text-sm font-bold text-white">Presented by Official Telugu Icon Partner</div>
+                    <div className="text-[10px] sm:text-xs text-white/40 uppercase tracking-wider font-semibold">Category Partner</div>
+                    <div className="text-xs sm:text-sm font-bold text-white">Presented by Official Telugu Icon Partner</div>
                   </div>
                 </div>
                 <Link

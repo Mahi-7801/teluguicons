@@ -34,7 +34,7 @@ const FAQS = [
   },
   {
     q: 'When and where is the Telugu Icon Awards Ceremony?',
-    a: 'The Telugu Icon Digital & Influencer Awards 2026 takes place on Sunday, August 30, 2026 at Hitex Exhibition Center, Hyderabad. Session 1 runs from 10:00 AM to 2:00 PM (with Complimentary Lunch) and Session 2 from 3:00 PM to 7:00 PM (with Complimentary Dinner), organized by Pracharam Media.',
+    a: 'The Telugu Icon Digital & Influencer Awards 2026 takes place on 16 November 2026 at Shilpakala Vedika, Hyderabad. Session 1 runs from 10:00 AM to 2:00 PM (with Complimentary Lunch) and Session 2 from 3:00 PM to 7:00 PM (with Complimentary Dinner), organized and presented by Pracharam Media.',
   },
   {
     q: 'How can I sponsor or partner with the awards?',
@@ -47,14 +47,14 @@ export default function AboutPage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <p className="section-subtitle">Our Story</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-6">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-6">
             <span className="gold-text">About</span> <span className="text-white">the Awards</span>
           </h1>
-          <p className="text-white/60 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-white/60 leading-relaxed max-w-2xl mx-auto text-xs sm:text-base">
             The Telugu Icon Digital & Influencer Awards is a celebration of the creators, entertainers,
             and digital personalities who put Telugu culture on the global digital map. From YouTube super-stars
             to Instagram trendsetters, we honor the icons millions of us love, follow, and admire every single day.
@@ -62,12 +62,12 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="py-14 bg-ink-900">
+      <section className="py-10 sm:py-14 bg-ink-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
             {[
-              { value: '50', label: 'Total Awards' },
-              { value: '40', label: 'People\'s Choice Categories' },
+              { value: '60', label: 'Total Awards' },
+              { value: '50', label: 'People\'s Choice Categories' },
               { value: '10', label: 'Jury & Special Recognition' },
               { value: '1', label: 'Grand Celebration' },
             ].map((stat) => (
@@ -76,17 +76,17 @@ export default function AboutPage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                className="text-center p-6 glass-card"
+                className="text-center p-3.5 sm:p-6 glass-card"
               >
-                <div className="text-4xl md:text-5xl font-display font-bold gold-text mb-2">{stat.value}</div>
-                <div className="text-white/50 text-sm">{stat.label}</div>
+                <div className="text-2xl sm:text-4xl md:text-5xl font-display font-bold gold-text mb-1 sm:mb-2">{stat.value}</div>
+                <div className="text-white/50 text-[11px] sm:text-sm">{stat.label}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-20 bg-ink-900">
+      <section className="py-10 sm:py-20 bg-ink-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <p className="section-subtitle">What We Stand For</p>

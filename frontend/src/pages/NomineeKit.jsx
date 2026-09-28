@@ -145,8 +145,8 @@ export default function NomineeKit() {
       // Footer
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.font = '20px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('Sunday, August 30, 2026 • Hitex Exhibition Center, Hyderabad', 540, 1220);
-      ctx.fillText('100% Verified OTP Public Voting • Powered by Telugu Icon Ecosystem', 540, 1255);
+      ctx.fillText('16 November 2026 • Shilpakala Vedika, Hyderabad', 540, 1220);
+      ctx.fillText('100% Verified OTP Public Voting • Presented by Pracharam Media', 540, 1255);
     }
   }, [selectedNominee]);
 
@@ -164,7 +164,7 @@ export default function NomineeKit() {
     : '';
 
   const shareTextInstagram = selectedNominee
-    ? `Humbled and honored to announce my nomination for ${selectedNominee.category_name || 'an award'} at the @teluguiconawards 2026! 🏆✨\n\nVoting is 100% public and OTP-verified! Link in bio to cast your vote.\n\nCode: ${selectedNominee.nominee_code || 'TIA2026'}\nEvent Date: August 30, 2026 • Hitex, Hyderabad\n\n#TeluguIconAwards #TIA2026 #TeluguCreators #TeluguInfluencers #VoteForMe`
+    ? `Humbled and honored to announce my nomination for ${selectedNominee.category_name || 'an award'} at the @teluguiconawards 2026! 🏆✨\n\nVoting is 100% public and OTP-verified! Link in bio to cast your vote.\n\nCode: ${selectedNominee.nominee_code || 'TIA2026'}\nEvent Date: 16 November 2026 • Shilpakala Vedika, Hyderabad\n\n#TeluguIconAwards #TIA2026 #TeluguCreators #TeluguInfluencers #VoteForMe`
     : '';
 
   const copyToClipboard = (text, key) => {
@@ -175,33 +175,33 @@ export default function NomineeKit() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <span className="section-subtitle">Creator Campaign Suite</span>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             Official Nominee <span className="gold-text">Campaign Kit</span>
           </h1>
-          <p className="text-white/60 text-base md:text-lg max-w-2xl mx-auto">
+          <p className="text-white/60 text-xs sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
             Generate your high-resolution official nominee poster, download vote campaign creatives, and copy ready-to-use social copy templates.
           </p>
         </div>
       </section>
 
-      <section className="py-14 bg-ink-900 min-h-screen">
+      <section className="py-10 sm:py-14 bg-ink-900 min-h-screen">
         <div className="max-w-7xl mx-auto px-4">
           {/* Nominee Selector */}
-          <div className="mb-10 max-w-xl mx-auto">
+          <div className="mb-8 sm:mb-10 max-w-xl mx-auto">
             <label className="block text-xs font-bold text-champagne-400 uppercase tracking-wider mb-2 text-center">
               Select or Search Nominee Profile
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
                 placeholder="Type creator name..."
-                className="flex-1 px-4 py-3 rounded-xl bg-ink-800 border border-white/10 text-white placeholder-white/30 text-sm focus:border-champagne-500 focus:outline-none"
+                className="flex-1 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-ink-800 border border-white/10 text-white placeholder-white/30 text-xs sm:text-sm focus:border-champagne-500 focus:outline-none"
               />
               {nominees.length > 0 && (
                 <select
@@ -210,7 +210,7 @@ export default function NomineeKit() {
                     const nom = nominees.find((n) => String(n.id) === e.target.value);
                     if (nom) setSelectedNominee(nom);
                   }}
-                  className="px-4 py-3 rounded-xl bg-ink-800 border border-white/10 text-white text-sm focus:border-champagne-500 focus:outline-none max-w-[200px]"
+                  className="px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-ink-800 border border-white/10 text-white text-xs sm:text-sm focus:border-champagne-500 focus:outline-none w-full sm:max-w-[200px]"
                 >
                   {nominees.map((n) => (
                     <option key={n.id} value={n.id}>{n.full_name}</option>

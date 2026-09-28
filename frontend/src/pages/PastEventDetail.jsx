@@ -57,17 +57,17 @@ export default function PastEventDetail() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <Link to="/past-events" className="inline-flex items-center text-white/40 hover:text-champagne-400 transition-colors text-sm mb-6">
+        <div className="relative max-w-4xl mx-auto text-center">
+          <Link to="/past-events" className="inline-flex items-center text-white/40 hover:text-champagne-400 transition-colors text-xs sm:text-sm mb-4 sm:mb-6">
             ← Back to Past Events
           </Link>
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-champagne-500/15 border border-champagne-500/30 text-champagne-400 text-xs font-semibold mb-4">
+          <div className="inline-flex items-center px-3 py-1 rounded-full bg-champagne-500/15 border border-champagne-500/30 text-champagne-400 text-xs font-semibold mb-3 sm:mb-4">
             {event.year} Archive
           </div>
-          <h1 className="font-display text-3xl md:text-5xl font-bold text-white mb-4">{event.name}</h1>
-          <div className="flex items-center justify-center gap-4 text-white/40 text-sm flex-wrap">
+          <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-3 sm:mb-4">{event.name}</h1>
+          <div className="flex items-center justify-center gap-3 sm:gap-4 text-white/40 text-xs sm:text-sm flex-wrap">
             {event.event_date && (
               <span>📅 {new Date(event.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
             )}

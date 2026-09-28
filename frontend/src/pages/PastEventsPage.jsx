@@ -38,25 +38,25 @@ export default function PastEventsPage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <p className="section-subtitle">Our Legacy</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Past</span> <span className="text-white">Events</span>
           </h1>
-          <p className="text-white/60 max-w-xl mx-auto">
+          <p className="text-white/60 max-w-xl mx-auto text-xs sm:text-base leading-relaxed">
             A permanent archive of excellence. Every event, every icon, every moment — preserved here for Telugu digital history.
           </p>
         </div>
       </section>
 
-      <section className="py-16 bg-ink-900">
+      <section className="py-10 sm:py-16 bg-ink-900">
         <div className="max-w-5xl mx-auto px-4">
           {loading ? (
-            <div className="text-center text-white/40 py-20">Loading past events...</div>
+            <div className="text-center text-white/40 py-16 sm:py-20 text-sm">Loading past events...</div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-5 sm:gap-8">
               {displayEvents.map((ev, i) => (
                 <motion.div
                   key={ev.id}

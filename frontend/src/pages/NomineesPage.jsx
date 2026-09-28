@@ -22,30 +22,30 @@ export default function NomineesPage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-5xl mx-auto px-4 text-center">
+        <div className="relative max-w-5xl mx-auto text-center">
           <p className="section-subtitle">The Stars</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Nominees</span> <span className="text-white">Showcase</span>
           </h1>
-          <p className="text-white/60 mb-8">Discover the creators nominated for the 2026 Telugu Icon Awards.</p>
+          <p className="text-white/60 mb-6 sm:mb-8 text-xs sm:text-base leading-relaxed">Discover the creators nominated for the 2026 Telugu Icon Awards.</p>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search nominees or categories..."
-            className="input-field max-w-md mx-auto"
+            className="input-field max-w-md mx-auto text-xs sm:text-sm"
           />
         </div>
       </section>
 
-      <section className="py-16 bg-ink-900">
+      <section className="py-10 sm:py-16 bg-ink-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {loading ? (
-            <div className="text-center py-20 text-white/40">Loading nominees...</div>
+            <div className="text-center py-16 sm:py-20 text-white/40 text-sm">Loading nominees...</div>
           ) : filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filtered.map((n, i) => (
                 <motion.div
                   key={n.id}

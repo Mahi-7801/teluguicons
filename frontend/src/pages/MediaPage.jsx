@@ -81,27 +81,27 @@ export default function MediaPage() {
   return (
     <PageTransition>
       {/* Hero */}
-      <section className="relative py-24 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-5xl mx-auto px-4 text-center">
+        <div className="relative max-w-5xl mx-auto text-center">
           <p className="section-subtitle">Press & Public Relations</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Media & Press</span> Center
           </h1>
-          <p className="text-white/60 max-w-2xl mx-auto text-base md:text-lg">
+          <p className="text-white/60 max-w-2xl mx-auto text-xs sm:text-base leading-relaxed">
             Access official press statements, high-resolution media kits, announcements, and coverage from the Telugu Icon ecosystem.
           </p>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-4">
+          <div className="mt-6 sm:mt-8 flex flex-wrap justify-center gap-3 sm:gap-4">
             <a
               href="#press-kit"
-              className="px-6 py-3 rounded-full bg-champagne-500 text-ink-900 font-semibold text-sm hover:bg-champagne-400 transition-all shadow-gold"
+              className="px-4 py-2 sm:px-6 sm:py-2.5 rounded-full bg-champagne-500 text-ink-900 font-semibold text-xs sm:text-sm hover:bg-champagne-400 transition-all shadow-gold"
             >
               Download Press Kit
             </a>
             <a
               href="#media-accreditation"
-              className="px-6 py-3 rounded-full bg-white/5 hover:bg-white/10 text-white font-medium text-sm border border-white/10 transition-all"
+              className="px-4 py-2 sm:px-6 sm:py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white font-medium text-xs sm:text-sm border border-white/10 transition-all"
             >
               Press Accreditation
             </a>

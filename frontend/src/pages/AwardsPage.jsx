@@ -1,157 +1,186 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import PageTransition from '../components/PageTransition';
 import { api } from '../api';
 
 export default function AwardsPage() {
-  const [jury, setJury] = useState([]);
-  const [selfNomination, setSelfNomination] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/categories/jury').then(setJury).catch(() => {});
-    api.get('/categories/self-nomination').then(setSelfNomination).catch(() => {});
+    api.get('/categories')
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setCategories(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  const all = [...jury, ...selfNomination];
-  const filtered = activeTab === 'all'
-    ? all
-    : activeTab === 'jury'
-      ? jury
-      : selfNomination;
+  const jury = useMemo(() => categories.filter((c) => c.type === 'jury'), [categories]);
+  const selfNomination = useMemo(() => categories.filter((c) => c.type === 'self_nomination'), [categories]);
+
+  const filtered = useMemo(() => {
+    let list = categories;
+    if (activeTab === 'jury') list = jury;
+    if (activeTab === 'self') list = selfNomination;
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.description && c.description.toLowerCase().includes(q))
+      );
+    }
+    return list;
+  }, [categories, jury, selfNomination, activeTab, search]);
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="section-subtitle">The Categories</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-6">
-            <span className="gold-text">50 Awards.</span> <span className="text-white">One Digital Community.</span>
+      {/* Hero */}
+      <section className="relative py-12 sm:py-20 bg-gradient-to-br from-[#330000] via-[#820000] to-[#3d0000] text-center overflow-hidden px-3 sm:px-4">
+        <div className="relative max-w-5xl mx-auto">
+          <div className="text-[10px] tracking-[3px] sm:tracking-[4px] text-[#f1d99a] font-black uppercase mb-2">The Categories</div>
+          <h1 className="font-serif-luxury text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-[#fff7e8] mb-3 sm:mb-4">
+            50 Public Categories <span className="text-[#f1d99a]">+ 10 Special Awards.</span>
           </h1>
-          <p className="text-white/60 max-w-2xl mx-auto mb-10">
-            The Telugu Icon Digital & Influencer Awards 2026 — 40 self-nomination categories open for creators, and
-            10 Jury & Special Recognition Awards selected by the official jury.
+          <p className="text-[#f6e9d5] max-w-2xl mx-auto text-xs sm:text-base mb-6 sm:mb-8 leading-relaxed">
+            Every award clearly identifies its decision method: 50 People’s Choice categories decided by public voting, and 10 Special Awards decided by the official jury.
           </p>
-          <div className="inline-flex rounded-xl bg-ink-800 border border-white/10 p-1">
-            {[
-              { key: 'all', label: 'All Awards' },
-              { key: 'jury', label: 'Jury & Special Recognition' },
-              { key: 'self', label: 'Self-Nomination' },
-            ].map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  activeTab === t.key ? 'bg-champagne-500 text-ink-900' : 'text-white/60 hover:text-white'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center items-center">
+            <div className="inline-flex rounded border border-[rgba(216,181,107,0.3)] bg-black/40 p-1 flex-wrap justify-center">
+              {[
+                { key: 'all', label: `All Awards (${categories.length || 60})` },
+                { key: 'self', label: `Public Voting (${selfNomination.length || 50})` },
+                { key: 'jury', label: `Jury Awards (${jury.length || 10})` },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded text-[11px] sm:text-xs font-semibold transition-all ${
+                    activeTab === t.key
+                      ? 'bg-[#d8b56b] text-[#160505]'
+                      : 'text-[#cdbda9] hover:text-white'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <input
+              type="text"
+              placeholder="Search award category..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="px-3 py-1.5 text-xs rounded bg-black/40 border border-[rgba(216,181,107,0.3)] text-white placeholder-white/40 focus:outline-none focus:border-[#d8b56b] w-full sm:w-64"
+            />
           </div>
         </div>
       </section>
 
-      <section className="py-16 bg-ink-900">
+      {/* Categories Grid */}
+      <section className="py-10 sm:py-16 bg-[#160505]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="p-3.5 sm:p-4 rounded border border-[rgba(216,181,107,0.3)] bg-[#250909] text-xs text-[#f1d99a] mb-6 sm:mb-10 text-center leading-relaxed">
+            📌 <strong>Nomination Rule:</strong> Each creator/influencer may self-nominate in a maximum of <strong>3 categories only</strong>, and each selected category must be genuinely relevant to their digital presence.
+          </div>
+
+          <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filtered.map((cat, i) => (
               <motion.div
-                key={cat.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className="glass-card p-6 group hover:border-champagne-500/40 hover:bg-white/[0.07] transition-all duration-300"
+                key={cat.id || cat.slug}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.02, 0.5) }}
+                className="card-preview p-4 sm:p-6 flex flex-col justify-between group hover:border-[#d8b56b] transition-all"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-3xl">{cat.type === 'jury' ? '👑' : '🏆'}</span>
-                  <span className={`text-[10px] uppercase tracking-wider px-3 py-1 rounded-full ${
-                    cat.type === 'jury'
-                      ? 'bg-champagne-500/15 text-champagne-400 border border-champagne-500/30'
-                      : 'bg-white/10 text-white/50 border border-white/10'
-                  }`}>
-                    {cat.type === 'jury' ? 'Jury Award' : 'Self-Nomination'}
-                  </span>
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-champagne-300 transition-colors">
-                  {cat.name}
-                </h3>
-                <p className="text-white/50 text-sm leading-relaxed">
-                  {cat.description || (cat.type === 'jury'
-                    ? 'Selected through the official jury/organizing process.'
-                    : 'Open for creator self-nomination and public voting.')}
-                </p>
-                <div className="mt-5">
-                  {cat.type === 'jury' ? (
-                    <span className="inline-flex items-center text-xs text-white/40">
-                      👑 Jury Award — not open for nomination
+                <div>
+                  <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <span className="badge-gold">
+                      {cat.type === 'jury' ? '👑 JURY AWARD · JURY SELECTED' : '🗳 PEOPLE\'S CHOICE · PUBLIC VOTING'}
                     </span>
+                    <span className="text-xs text-[#a99888] font-mono">#{String(cat.sort_order || i + 1).padStart(2, '0')}</span>
+                  </div>
+                  <h3 className="font-serif-luxury text-lg sm:text-xl font-bold text-[#f1d99a] group-hover:text-white transition-colors mb-2">
+                    {cat.name}
+                  </h3>
+                  <p className="text-[#d7c8b8] text-xs leading-relaxed mb-4">
+                    {cat.description || (cat.type === 'jury'
+                      ? 'Special recognition selected by the official jury; not open for self-nomination or public voting.'
+                      : 'Eligible for creator self-nomination and public voting, subject to category relevance and verification.')}
+                  </p>
+                </div>
+
+                <div className="pt-3 sm:pt-4 border-t border-[rgba(216,181,107,0.15)] flex items-center justify-between">
+                  {cat.type === 'jury' ? (
+                    <span className="text-[11px] text-[#a99888] italic">Official Jury Decision</span>
                   ) : (
-                    <a href="/nominate" className="btn-gold text-sm py-2 px-4">Nominate Yourself</a>
+                    <Link to="/nominate" className="btn-gold text-xs py-1.5 px-3">
+                      Self-Nominate →
+                    </Link>
                   )}
+                  <Link to={`/category/${cat.slug}`} className="text-white/40 hover:text-white text-xs">
+                    View Details
+                  </Link>
                 </div>
               </motion.div>
             ))}
           </motion.div>
-          {filtered.length === 0 && (
-            <div className="text-center text-white/40 py-20">
-              Loading categories...
+
+          {loading && (
+            <div className="text-center text-[#a99888] py-16 sm:py-20 text-sm">
+              Loading award categories...
+            </div>
+          )}
+
+          {!loading && filtered.length === 0 && (
+            <div className="text-center text-[#a99888] py-16 sm:py-20 text-sm">
+              No categories match your search.
             </div>
           )}
         </div>
       </section>
 
-      <section className="py-20 bg-ink-800/50">
+      {/* How it works info */}
+      <section className="py-10 sm:py-20 bg-[#120404] border-t border-[rgba(216,181,107,0.2)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <p className="section-subtitle">The Journey</p>
-            <h2 className="section-title">How the Awards Work</h2>
-            <p className="text-white/50 max-w-2xl mx-auto">
-              Forty People's Choice categories are decided by creator-led campaigns and public votes.
-              Ten Jury &amp; Special Recognition Awards are selected by the official jury. Here's how it all unfolds.
+          <div className="text-center mb-8 sm:mb-12">
+            <div className="text-[10px] tracking-[3px] sm:tracking-[4px] text-[#d8b56b] font-black uppercase mb-1">Structure</div>
+            <h2 className="section-title text-xl sm:text-3xl md:text-4xl">How the Awards Work</h2>
+            <p className="text-[#a99888] text-xs sm:text-sm max-w-2xl mx-auto mt-2">
+              Fifty People’s Choice categories are decided by creator-led campaigns and public votes.
+              Ten Jury &amp; Special Recognition Awards are selected by the official jury.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {[
-              { n: '01', t: 'Nominate', d: 'Creators submit their self-nomination in the category that best fits their content and audience.' },
+              { n: '01', t: 'Self-Nominate', d: 'Creators submit their self-nomination in up to 3 categories that best fit their content and audience.' },
               { n: '02', t: 'Get Verified', d: 'Our team verifies every nomination — profile, digital presence and supporting content.' },
-              { n: '03', t: 'Official Nominee Profiles', d: 'Approved creators receive unique shareable profiles with the Official Nominee badge.' },
-              { n: '04', t: 'Rally & Get Voted', d: 'Nominees share their voting links, communities vote, and People\'s Choice champions rise.' },
-            ].map((s, i) => (
-              <motion.div
-                key={s.n}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="relative glass-card p-6 group hover:border-champagne-500/40 transition-all duration-300"
-              >
-                <div className="font-display text-5xl font-black gold-text opacity-30 group-hover:opacity-100 transition-opacity duration-300">{s.n}</div>
-                <h3 className="text-xl font-semibold text-white mt-3 mb-2 group-hover:text-champagne-300 transition-colors">{s.t}</h3>
-                <p className="text-white/50 text-sm leading-relaxed">{s.d}</p>
-              </motion.div>
+              { n: '03', t: 'Campaign Kit', d: 'Approved creators receive official badges, voting links, QR codes and campaign posters.' },
+              { n: '04', t: 'Public Voting', d: 'Audiences vote with OTP verification, culminating in live winner announcements on stage.' },
+            ].map((s) => (
+              <div key={s.n} className="card-preview p-4 sm:p-6 text-center">
+                <div className="text-2xl sm:text-3xl font-black text-[#d8b56b] font-serif-luxury mb-1.5 sm:mb-2">{s.n}</div>
+                <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 sm:mb-2">{s.t}</h3>
+                <p className="text-[#d7c8b8] text-xs leading-relaxed">{s.d}</p>
+              </div>
             ))}
           </div>
-          <div className="mt-10 glass-card p-6 max-w-3xl mx-auto text-center">
-            <p className="text-white/60 text-sm leading-relaxed">
+
+          <div className="mt-8 sm:mt-10 p-4 sm:p-6 card-preview max-w-3xl mx-auto text-center">
+            <p className="text-[#d7c8b8] text-xs leading-relaxed">
               👑 <strong className="text-white">Jury &amp; Special Recognition Awards</strong> are evaluated by the official jury on contribution,
-              influence, originality, impact and achievement — announced live at the grand gala ceremony on
-              <span className="text-champagne-300"> Sunday, August 30, 2026</span> at Hitex Exhibition Center, Hyderabad.
+              influence, originality, impact and achievement — announced live at the awards ceremony on
+              <span className="text-[#f1d99a] font-bold"> 16 November 2026</span> at Shilpakala Vedika, Hyderabad.
             </p>
           </div>
-        </div>
-      </section>
-
-      <section className="py-20 bg-ink-900">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="section-title">Your Content. Your Voice. Your Moment.</h2>
-          <p className="text-white/60 mb-8">
-            Are you a Telugu digital creator, influencer, YouTuber, storyteller, entrepreneur or digital personality?
-            Put yourself forward for the Telugu Icon Digital & Influencer Awards 2026.
-          </p>
-          <a href="/nominate" className="btn-gold">Nominate Yourself</a>
         </div>
       </section>
     </PageTransition>

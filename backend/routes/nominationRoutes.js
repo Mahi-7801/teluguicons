@@ -29,8 +29,27 @@ router.post('/', upload.single('photo'), async (req, res) => {
       other_profile_url, website_url, journey, achievements, support_links,
     } = req.body;
 
-    if (!category_id) {
-      return res.status(400).json({ message: 'Please select a category' });
+    let catIds = [];
+    if (req.body.category_ids) {
+      if (Array.isArray(req.body.category_ids)) {
+        catIds = req.body.category_ids.map(Number).filter(Boolean);
+      } else if (typeof req.body.category_ids === 'string') {
+        try {
+          const parsed = JSON.parse(req.body.category_ids);
+          catIds = Array.isArray(parsed) ? parsed.map(Number).filter(Boolean) : [Number(req.body.category_ids)].filter(Boolean);
+        } catch {
+          catIds = req.body.category_ids.split(',').map(s => Number(s.trim())).filter(Boolean);
+        }
+      }
+    } else if (category_id) {
+      catIds = [Number(category_id)].filter(Boolean);
+    }
+
+    if (catIds.length === 0) {
+      return res.status(400).json({ message: 'Please select at least 1 category (up to 3 maximum)' });
+    }
+    if (catIds.length > 3) {
+      return res.status(400).json({ message: 'Each creator may self-nominate in a maximum of 3 categories only' });
     }
     if (!full_name || !full_name.trim()) {
       return res.status(400).json({ message: 'Full name is required' });
@@ -42,13 +61,14 @@ router.post('/', upload.single('photo'), async (req, res) => {
       return res.status(400).json({ message: 'Please provide a valid mobile number' });
     }
 
-    // Jury & Special Recognition categories are NOT open for self-nomination.
+    // Verify all selected categories are self_nomination
+    const placeholders = catIds.map(() => '?').join(',');
     const [catRows] = await pool.query(
-      "SELECT id FROM categories WHERE id = ? AND type = 'self_nomination'",
-      [category_id]
+      `SELECT id, name FROM categories WHERE id IN (${placeholders}) AND type = 'self_nomination'`,
+      catIds
     );
-    if (catRows.length === 0) {
-      return res.status(400).json({ message: 'This category is not open for self-nomination' });
+    if (catRows.length !== catIds.length) {
+      return res.status(400).json({ message: 'One or more selected categories are not eligible for self-nomination' });
     }
 
     const [nomOpen] = await pool.query(
@@ -59,29 +79,35 @@ router.post('/', upload.single('photo'), async (req, res) => {
     }
 
     const photo_url = req.file ? ('/uploads/' + req.file.filename) : null;
+    const insertedCodes = [];
+    let primaryId = null;
 
-    const [result] = await pool.query(
-      `INSERT INTO nominations
-        (category_id, full_name, creator_name, email, phone, city, state,
-         primary_platform, youtube_url, instagram_url, facebook_url,
-         other_profile_url, website_url, photo_url, journey, achievements, support_links)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [category_id, full_name.trim(), creator_name || full_name.trim(), email.trim(), phone.trim(),
-       city || null, state || null, primary_platform || null,
-       youtube_url || null, instagram_url || null, facebook_url || null,
-       other_profile_url || null, website_url || null, photo_url,
-       journey || null, achievements || null, support_links || null]
-    );
+    for (const cId of catIds) {
+      const [result] = await pool.query(
+        `INSERT INTO nominations
+          (category_id, full_name, creator_name, email, phone, city, state,
+           primary_platform, youtube_url, instagram_url, facebook_url,
+           other_profile_url, website_url, photo_url, journey, achievements, support_links)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [cId, full_name.trim(), creator_name || full_name.trim(), email.trim(), phone.trim(),
+         city || null, state || null, primary_platform || null,
+         youtube_url || null, instagram_url || null, facebook_url || null,
+         other_profile_url || null, website_url || null, photo_url,
+         journey || null, achievements || null, support_links || null]
+      );
 
-    // Nomination ID: TIA2026-XXXXXX
-    const nominationId = result.insertId;
-    const nominationCode = 'TIA2026-' + String(nominationId).padStart(6, '0');
-    await pool.query('UPDATE nominations SET nomination_code = ? WHERE id = ?', [nominationCode, nominationId]);
+      const nomId = result.insertId;
+      if (!primaryId) primaryId = nomId;
+      const code = 'TIA2026-' + String(nomId).padStart(6, '0');
+      await pool.query('UPDATE nominations SET nomination_code = ? WHERE id = ?', [code, nomId]);
+      insertedCodes.push(code);
+    }
 
     res.status(201).json({
       message: 'Your self-nomination has been submitted successfully!',
-      nomination_code: nominationCode,
-      id: nominationId,
+      nomination_code: insertedCodes[0],
+      nomination_codes: insertedCodes,
+      id: primaryId,
     });
   } catch (error) {
     console.error('Nomination error:', error.message);

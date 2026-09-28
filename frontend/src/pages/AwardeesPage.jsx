@@ -30,23 +30,23 @@ export default function AwardeesPage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <p className="section-subtitle">Hall of Fame</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Awardee</span> <span className="text-white">Archive</span>
           </h1>
-          <p className="text-white/60 max-w-xl mx-auto">
+          <p className="text-white/60 max-w-xl mx-auto text-xs sm:text-base leading-relaxed">
             Every winner. Every icon. Every moment of recognition — preserved in a permanent searchable archive.
           </p>
         </div>
       </section>
 
-      <section className="py-12 bg-ink-900">
+      <section className="py-10 sm:py-12 bg-ink-900">
         <div className="max-w-6xl mx-auto px-4">
           {/* Search & Filters */}
-          <div className="glass-card p-5 mb-8">
+          <div className="glass-card p-3.5 sm:p-5 mb-6 sm:mb-8">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <input
                 className="bg-ink-800 border border-white/15 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/30 focus:outline-none focus:border-champagne-500/60 transition-colors"

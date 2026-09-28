@@ -5,78 +5,68 @@ import PageTransition from '../components/PageTransition';
 const FAQS = [
   {
     category: 'general',
-    q: 'What is the Telugu Icon Digital & Influencer Awards 2026?',
-    a: 'Telugu Icon Digital & Influencer Awards 2026 is South India’s premier creator recognition platform honoring outstanding digital creators, influencers, and media personalities across 40 curated categories with 100% verified, transparent public voting and expert jury validation.',
+    q: 'When is Telugu Icon Digital & Influencer Awards 2026?',
+    a: 'November 16, 2026 at Shilpakala Vedika, Hyderabad.',
   },
   {
     category: 'general',
-    q: 'When and where is the event taking place?',
-    a: 'The grand gala takes place on Sunday, August 30, 2026, at the prestigious Hitex Exhibition Center, Hitec City, Hyderabad.',
-  },
-  {
-    category: 'event',
-    q: 'What are the two event sessions on August 30, 2026?',
-    a: 'The gala is split into two power-packed sessions:\n• Session 1 (10:00 AM – 2:00 PM): Digital Creators & Emerging Voices (Includes Buffet Lunch).\n• Session 2 (3:00 PM – 7:00 PM): Mega Influencers, Celebrity Icons & Grand Finale (Includes Gala Dinner).\nSeparate tickets are required for each session.',
+    q: 'Is this a cinema or OTT awards event?',
+    a: 'No. The current event is specifically a Digital & Influencer Awards event focused on Telugu creators and digital influence. It is not cinema or movie awards.',
   },
   {
     category: 'nominations',
-    q: 'Who is eligible to nominate for an award?',
-    a: 'Any Telugu creator, influencer, streamer, podcaster, or digital organization producing Telugu content across YouTube, Instagram, Facebook, X, or podcast platforms is eligible. Self-nominations and public peer nominations are both accepted.',
+    q: 'When do self-nominations open and close?',
+    a: 'Self-nominations open October 1, 2026 and close November 5, 2026 at 11:59 PM.',
   },
   {
     category: 'nominations',
-    q: 'Is there any entry or nomination submission fee?',
-    a: 'No. Submitting a nomination is completely free of charge. The platform is committed to merit and authentic audience impact without financial paywalls.',
+    q: 'Can I nominate someone else?',
+    a: 'No. Only self-nominations are accepted. There is no “Nominate Someone Else” option on the platform.',
   },
   {
     category: 'nominations',
-    q: 'What happens after I submit a nomination?',
-    a: 'Our editorial screening team verifies follower legitimacy, content guidelines, and channel authenticity. Once verified, nominations move to the shortlisting phase where official nominees are announced for public voting.',
+    q: 'How many categories can a creator self-nominate for?',
+    a: 'Each creator/influencer may self-nominate in a maximum of 3 categories only, and every selected category must be genuinely relevant to their content, work or digital presence.',
+  },
+  {
+    category: 'nominations',
+    q: 'Is there any entry fee for self-nomination?',
+    a: 'No. Self-nominations are completely free of charge. There are no registration fees.',
   },
   {
     category: 'voting',
-    q: 'How does the public voting process work?',
-    a: 'Voting is 100% OTP-verified. To vote, enter your Indian mobile number, verify the 6-digit verification code provided by our secure verification engine, and cast your vote. You can vote once per category per mobile number.',
+    q: 'When does public voting open and close?',
+    a: 'Public voting opens October 10, 2026 and closes November 15, 2026 at 11:59 PM.',
   },
   {
     category: 'voting',
-    q: 'How do you prevent fraudulent or bot votes?',
-    a: 'Our anti-fraud engine employs IP rate limiting, device fingerprinting, disposable number detection, and automated audit flags. Any vote spike exceeding statistical thresholds is reviewed and quarantined.',
+    q: 'Will vote counts be visible publicly?',
+    a: 'Yes. Verified public vote counts and category positions will be displayed during the voting period through November 11. From November 12, public vote totals and rankings are hidden while voting continues securely until November 15.',
   },
   {
     category: 'voting',
-    q: 'Can I vote for nominees in multiple categories?',
-    a: 'Yes! Your verified mobile number grants you one vote in each of the 40 award categories.',
-  },
-  {
-    category: 'voting',
-    q: 'How are the final winners determined?',
-    a: 'Final winners are calculated using a weighted hybrid system combining verified public votes with an esteemed grand jury panel score to ensure both popularity and artistic excellence are rewarded.',
+    q: 'How does OTP-verified voting work?',
+    a: 'Voting is verified via Indian mobile OTP. Each voter may cast one verified vote per category. Duplicate vote controls, rate limiting, and bot protection safeguard the integrity of every category.',
   },
   {
     category: 'tickets',
-    q: 'What ticket types are available and how much do they cost?',
-    a: 'Tickets are offered in two tiers per session:\n• VVIP Pass: ₹500 (Priority Seating + Session Food Entitlement)\n• MIP (Most Important Person): ₹1,000 (Front Zone Seating + Red Carpet Walkway Access + Food Entitlement)',
+    q: 'What are the two event sessions?',
+    a: 'Session 1 is 10:00 AM – 2:00 PM with complimentary lunch. Session 2 is 3:00 PM – 7:00 PM with complimentary dinner at Shilpakala Vedika, Hyderabad.',
   },
   {
     category: 'tickets',
-    q: 'Is food and beverage included with the tickets?',
-    a: 'Yes! Session 1 tickets include an elaborate Andhra & Telangana buffet lunch. Session 2 tickets include the Grand Gala dinner buffet. Food coupons are tied to your digital ticket QR code.',
+    q: 'Are tickets refundable?',
+    a: 'Tickets once booked are non-refundable and non-cancellable, except where a refund is required due to event cancellation or applicable law. Final ticket terms are shown before payment.',
   },
   {
     category: 'tickets',
-    q: 'Are tickets refundable or transferable?',
-    a: 'No. As per our strict ticketing policy, all purchases are strictly non-refundable and non-exchangeable. Please verify your session time and attendee names before confirming payment.',
-  },
-  {
-    category: 'event',
-    q: 'Can nominees attend the awards ceremony for free?',
-    a: 'Official shortlisted nominees receive an official Nominee Pass granting them access to their designated category session. Companion or guest passes must be booked via the Tickets page.',
+    q: 'Will the website show the number of seats remaining?',
+    a: 'No. The public ticketing interface shows availability status only (such as Available, Filling Fast, Almost Sold Out or Sold Out) — never total capacity or remaining inventory.',
   },
   {
     category: 'sponsors',
-    q: 'How can brands sponsor or partner with Telugu Icon Awards 2026?',
-    a: 'We offer Title, Powered-By, Co-Powered, Category, and Experience Zone partnership tiers reaching 5M+ digital impressions. You can explore our deck on the Sponsors page or submit a query through our Partner enquiry form.',
+    q: 'How can brands partner with Telugu Icon Awards 2026?',
+    a: 'We offer Title Partner, Powered By, Co-Powered, Gold, Silver, Associate, Category, and Supporting Partner opportunities. Explore the Partners page or submit a query to get the partnership proposal.',
   },
 ];
 
@@ -124,28 +114,28 @@ export default function FAQPage() {
       />
 
       {/* Hero */}
-      <section className="relative py-24 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <p className="section-subtitle">Help & Transparency</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             Frequently Asked <span className="gold-text">Questions</span>
           </h1>
-          <p className="text-white/60 max-w-2xl mx-auto text-base md:text-lg">
+          <p className="text-white/60 max-w-2xl mx-auto text-xs sm:text-base leading-relaxed">
             Everything you need to know about nominations, OTP-verified voting, ticketing, sessions, and gala day protocols.
           </p>
 
           {/* Search Box */}
-          <div className="mt-8 max-w-xl mx-auto relative">
+          <div className="mt-6 sm:mt-8 max-w-xl mx-auto relative">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search questions (e.g., tickets, voting, food)..."
-              className="w-full px-5 py-3.5 pl-12 rounded-2xl bg-ink-800/90 border border-white/10 text-white placeholder-white/30 focus:border-champagne-500 focus:outline-none shadow-lg text-sm"
+              className="w-full px-4 py-2.5 sm:px-5 sm:py-3.5 pl-10 sm:pl-12 rounded-2xl bg-ink-800/90 border border-white/10 text-white placeholder-white/30 focus:border-champagne-500 focus:outline-none shadow-lg text-xs sm:text-sm"
             />
             <svg
-              className="w-5 h-5 text-white/40 absolute left-4 top-1/2 -translate-y-1/2"
+              className="w-4 h-4 sm:w-5 sm:h-5 text-white/40 absolute left-3.5 sm:left-4 top-1/2 -translate-y-1/2"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

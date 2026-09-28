@@ -41,43 +41,43 @@ export default function NomineeProfile() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-5xl mx-auto px-4">
-          <div className="grid md:grid-cols-5 gap-8 items-start">
-            <div className="col-span-2">
-              <div className="glass-card overflow-hidden">
+        <div className="relative max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 sm:gap-8 items-start">
+            <div className="md:col-span-2">
+              <div className="glass-card overflow-hidden max-w-xs mx-auto md:max-w-none">
                 <div className="aspect-square bg-gradient-to-br from-ink-700 to-burgundy-900 flex items-center justify-center">
                   {nominee.photo_url ? (
                     <img src={nominee.photo_url} alt={nominee.full_name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-9xl">🏆</span>
+                    <span className="text-7xl sm:text-9xl">🏆</span>
                   )}
                 </div>
               </div>
             </div>
-            <div className="col-span-3">
-              <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-champagne-500/15 border border-champagne-500/40 text-champagne-300 text-xs font-semibold mb-4">
+            <div className="md:col-span-3">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-champagne-500/15 border border-champagne-500/40 text-champagne-300 text-[11px] sm:text-xs font-semibold mb-3">
                 ⭐ Official Nominee • {nominee.nominee_code}
               </span>
-              <h1 className="font-display text-4xl md:text-5xl font-bold text-white mb-2">{nominee.full_name}</h1>
-              <p className="text-champagne-400 text-lg mb-4">{nominee.category_name}</p>
+              <h1 className="font-display text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-1.5 sm:mb-2">{nominee.full_name}</h1>
+              <p className="text-champagne-400 text-sm sm:text-base md:text-lg mb-3">{nominee.category_name}</p>
               {nominee.social_handle && (
-                <p className="text-white/60 mb-4">📱 {nominee.social_handle}</p>
+                <p className="text-white/60 text-xs sm:text-sm mb-3">📱 {nominee.social_handle}</p>
               )}
-              <p className="text-white/50 leading-relaxed mb-6">
+              <p className="text-white/50 text-xs sm:text-sm leading-relaxed mb-5">
                 {nominee.bio || 'No bio provided yet. Follow this creator\'s journey!'}
               </p>
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="glass-card p-4 text-center">
-                  <div className="text-2xl font-display font-bold gold-text">{nominee.vote_count.toLocaleString()}</div>
-                  <div className="text-white/40 text-xs mt-1">Votes</div>
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 mb-6 sm:mb-8">
+                <div className="glass-card p-3 sm:p-4 text-center">
+                  <div className="text-lg sm:text-2xl font-display font-bold gold-text">{nominee.vote_count.toLocaleString()}</div>
+                  <div className="text-white/40 text-[10px] sm:text-xs mt-1">Votes</div>
                 </div>
-                <div className="glass-card p-4 text-center">
-                  <div className="text-2xl font-display font-bold gold-text">
+                <div className="glass-card p-3 sm:p-4 text-center">
+                  <div className="text-lg sm:text-2xl font-display font-bold gold-text">
                     {nominee.followers_count ? nominee.followers_count.toLocaleString() : '—'}
                   </div>
-                  <div className="text-white/40 text-xs mt-1">Followers</div>
+                  <div className="text-white/40 text-[10px] sm:text-xs mt-1">Followers</div>
                 </div>
                 <div className="glass-card p-4 text-center">
                   <div className="text-2xl font-display font-bold gold-text">2026</div>

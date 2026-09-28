@@ -13,10 +13,10 @@ const LEGAL_DOCS = {
       },
       {
         heading: '2. Award Ceremony Details',
-        content: `Telugu Icon Digital & Influencer Awards 2026 is scheduled to be held on Sunday, August 30, 2026, at Hitex Exhibition Center, Hyderabad across two distinct sessions:
-• Session 1 (10:00 AM – 2:00 PM): Digital Creators & Emerging Voices
-• Session 2 (3:00 PM – 7:00 PM): Mega Influencers, Celebrity Icons & Grand Finale
-The organizers reserve the right to modify the schedule, venue halls, or session timings if required due to operational exigencies.`,
+        content: `Telugu Icon Digital & Influencer Awards 2026 is scheduled to be held on 16 November 2026, at Shilpakala Vedika, Hyderabad across two distinct sessions:
+• Session 1 (10:00 AM – 2:00 PM): Digital Creators & Emerging Voices (Complimentary Lunch Included)
+• Session 2 (3:00 PM – 7:00 PM): Mega Influencers, Celebrity Icons & Grand Finale (Complimentary Dinner Included)
+The organizers reserve the right to modify the schedule or session timings if required due to operational exigencies.`,
       },
       {
         heading: '3. Platform Usage and Conduct',

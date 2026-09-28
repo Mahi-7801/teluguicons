@@ -51,14 +51,21 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-ink-950/85 backdrop-blur-2xl border-b border-white/[0.08] shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-20">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-[#0d0303] border-b border-[rgba(216,181,107,0.25)] text-[10px] sm:text-[11px] text-[#cdbda9] py-1 sm:py-1.5 px-2 sm:px-4 tracking-wider">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-0.5 sm:gap-1 font-semibold text-center sm:text-left">
+          <span className="text-[#a99888] tracking-[0.12em] sm:tracking-[0.15em] text-[9px] sm:text-[10px]">PRACHARAM MEDIA PRESENTS</span>
+          <span className="text-[#f1d99a] tracking-wide text-[10px] sm:text-[11px]">16 NOVEMBER 2026 · SHILPAKALA VEDIKA, HYDERABAD</span>
+        </div>
+      </div>
+
+      <nav className="fixed top-[34px] sm:top-[29px] left-0 right-0 z-50 bg-ink-950/90 backdrop-blur-2xl border-b border-white/[0.08] shadow-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
             {/* Brand Logo */}
-            <Link to="/" className="flex items-center space-x-3 shrink-0 group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-champagne-400 via-amber-500 to-burgundy-600 p-[1px] shadow-gold transition-transform duration-300 group-hover:scale-105">
+            <Link to="/" className="flex items-center space-x-2.5 sm:space-x-3 shrink-0 group">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-champagne-400 via-amber-500 to-burgundy-600 p-[1px] shadow-gold transition-transform duration-300 group-hover:scale-105">
                 <div className="w-full h-full bg-ink-950 rounded-[11px] flex items-center justify-center">
-                  <span className="font-display font-black text-xs text-champagne-400 tracking-wider">TIA</span>
+                  <span className="font-display font-black text-[10px] sm:text-xs text-champagne-400 tracking-wider">TIA</span>
                 </div>
               </div>
               <div className="hidden sm:block">
@@ -152,7 +159,7 @@ export default function Navbar() {
             <div className="flex items-center space-x-2 shrink-0">
               <Link
                 to="/tickets"
-                className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-champagne-400 via-amber-400 to-champagne-500 text-ink-950 font-bold text-xs hover:shadow-gold hover:brightness-105 transition-all whitespace-nowrap"
+                className="inline-flex items-center justify-center px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-champagne-400 via-amber-400 to-champagne-500 text-ink-950 font-bold text-[11px] sm:text-xs hover:shadow-gold hover:brightness-105 transition-all whitespace-nowrap"
               >
                 <span>Book Tickets</span>
               </Link>
@@ -200,12 +207,12 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-80 max-w-[85vw] bg-ink-900 border-l border-white/10 p-6 flex flex-col justify-between overflow-y-auto z-10 shadow-2xl"
+              className="fixed inset-y-0 right-0 w-72 max-w-[82vw] bg-ink-900 border-l border-white/10 p-4 sm:p-6 flex flex-col justify-between overflow-y-auto z-10 shadow-2xl"
             >
-              <div className="space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="space-y-5">
+                <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-champagne-400 to-burgundy-600 flex items-center justify-center font-bold text-ink-950 text-xs">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-champagne-400 to-burgundy-600 flex items-center justify-center font-bold text-ink-950 text-xs">
                       TIA
                     </div>
                     <div>
@@ -215,7 +222,7 @@ export default function Navbar() {
                   </div>
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="w-8 h-8 rounded-lg bg-white/5 text-white/60 hover:text-white flex items-center justify-center"
+                    className="w-7 h-7 rounded-lg bg-white/5 text-white/60 hover:text-white flex items-center justify-center text-xs"
                   >
                     ✕
                   </button>
@@ -226,14 +233,14 @@ export default function Navbar() {
                   <Link
                     to="/tickets"
                     onClick={() => setIsOpen(false)}
-                    className="py-2.5 text-center font-bold text-xs rounded-xl bg-champagne-500 text-ink-950 shadow-gold"
+                    className="py-2 text-center font-bold text-xs rounded-xl bg-champagne-500 text-ink-950 shadow-gold"
                   >
                     🎟️ Tickets
                   </Link>
                   <Link
                     to="/nominate"
                     onClick={() => setIsOpen(false)}
-                    className="py-2.5 text-center font-bold text-xs rounded-xl bg-white/10 text-white border border-white/10"
+                    className="py-2 text-center font-bold text-xs rounded-xl bg-white/10 text-white border border-white/10"
                   >
                     ⭐ Nominate
                   </Link>
@@ -289,15 +296,15 @@ export default function Navbar() {
               </div>
 
               <div className="pt-6 border-t border-white/10 text-center text-[11px] text-white/40">
-                Sunday, August 30, 2026<br />
-                <span className="text-champagne-400/70">Hitex Exhibition Center, Hyderabad</span>
+                16 November 2026<br />
+                <span className="text-champagne-400/70">Shilpakala Vedika, Hyderabad</span>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="h-16 lg:h-20" />
+      <div className="h-24 lg:h-28" />
     </>
   );
 }

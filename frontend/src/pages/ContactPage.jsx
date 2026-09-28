@@ -49,32 +49,32 @@ export default function ContactPage() {
 
   return (
     <PageTransition>
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
+        <div className="relative max-w-4xl mx-auto text-center">
           <p className="section-subtitle">Get in Touch</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Contact</span> <span className="text-white">Us</span>
           </h1>
-          <p className="text-white/60">Questions about nominations, voting, or partnerships? We're here to help.</p>
+          <p className="text-white/60 text-xs sm:text-base leading-relaxed">Questions about nominations, voting, or partnerships? We're here to help.</p>
         </div>
       </section>
 
-      <section className="py-16 bg-ink-900">
+      <section className="py-10 sm:py-16 bg-ink-900">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-5 gap-10">
-            <div className="lg:col-span-2 space-y-4">
-              <div className="glass-card p-6">
+          <div className="grid lg:grid-cols-5 gap-6 sm:gap-10">
+            <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+              <div className="glass-card p-4 sm:p-6">
                 <h3 className="font-semibold text-white mb-1">MD Naidu</h3>
                 <p className="text-white/40 text-sm">Founder & CEO, Pracharam Media</p>
               </div>
               {[
-                { icon: '📧', label: 'General Enquiries', value: 'info@teluguiconawards.in' },
+                { icon: '📧', label: 'General Enquiries', value: 'support@pracharammedia.in / info@teluguiconawards.in' },
                 { icon: '📝', label: 'Nominations', value: 'nominations@teluguiconawards.in' },
                 { icon: '🤝', label: 'Partnerships', value: 'partnerships@teluguiconawards.in' },
-                { icon: '📰', label: 'Media', value: 'media@teluguiconawards.in' },
-                { icon: '📞', label: 'Phone', value: '+91 XXXXX XXXXX' },
-                { icon: '📍', label: 'Venue', value: 'Hitex Exhibition Center, Hyderabad' },
+                { icon: '📰', label: 'Media & PR', value: 'media@teluguiconawards.in' },
+                { icon: '📞', label: 'Phone', value: '+91 94944 57274 / +91 92664 70997' },
+                { icon: '📍', label: 'Venue', value: 'Shilpakala Vedika, Hyderabad' },
                 { icon: '⏰', label: 'Response Time', value: 'Within 24-48 hours' },
               ].map((item) => (
                 <div key={item.label} className="glass-card p-5 flex items-start space-x-4">

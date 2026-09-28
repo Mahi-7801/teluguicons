@@ -69,19 +69,19 @@ export default function TicketsPage() {
   return (
     <PageTransition>
       {/* Hero */}
-      <section className="relative py-20 bg-hero-gradient overflow-hidden">
+      <section className="relative py-12 sm:py-20 bg-hero-gradient overflow-hidden px-3 sm:px-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,transparent_0%,#0a0a0a_100%)]" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <p className="section-subtitle">Sunday, August 30, 2026 · Hitex Exhibition Center, Hyderabad</p>
-          <h1 className="font-display text-4xl md:text-6xl font-bold mb-4">
+        <div className="relative max-w-4xl mx-auto text-center">
+          <p className="section-subtitle">16 November 2026 · Shilpakala Vedika, Hyderabad</p>
+          <h1 className="font-display text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4">
             <span className="gold-text">Book Your</span> <span className="text-white">Tickets</span>
           </h1>
-          <p className="text-white/60 max-w-xl mx-auto">
+          <p className="text-white/60 max-w-xl mx-auto text-xs sm:text-base leading-relaxed">
             Two sessions. Premium access. Celebrate the Telugu Icon Digital &amp; Influencer Awards 2026 live.
           </p>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center text-xs text-white/50">
-            <span className="px-4 py-2 rounded-full border border-white/10 bg-white/5">SESSION 1 · 10:00 AM – 2:00 PM · Complimentary Lunch</span>
-            <span className="px-4 py-2 rounded-full border border-white/10 bg-white/5">SESSION 2 · 3:00 PM – 7:00 PM · Complimentary Dinner</span>
+          <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center text-[10px] sm:text-xs text-white/50">
+            <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5">SESSION 1 · 10:00 AM – 2:00 PM · Complimentary Lunch</span>
+            <span className="px-3 py-1.5 rounded-full border border-white/10 bg-white/5">SESSION 2 · 3:00 PM – 7:00 PM · Complimentary Dinner</span>
           </div>
         </div>
       </section>
@@ -111,13 +111,13 @@ export default function TicketsPage() {
         </div>
       )}
 
-      <section className="py-10 bg-ink-900 min-h-[60vh]">
+      <section className="py-8 sm:py-10 bg-ink-900 min-h-[60vh]">
         <div className="max-w-3xl mx-auto px-4">
 
           {/* STEP 0 — Select Session */}
           {step === 0 && (
             <div className="space-y-4">
-              <h2 className="font-display text-2xl font-bold gold-text mb-6">Choose Your Session</h2>
+              <h2 className="font-display text-xl sm:text-2xl font-bold gold-text mb-4 sm:mb-6">Choose Your Session</h2>
               {[1, 2].map((s) => {
                 const info = SESSION_LABELS[s];
                 const avail = availTickets(s);
@@ -126,7 +126,7 @@ export default function TicketsPage() {
                     key={s}
                     whileHover={{ scale: 1.01 }}
                     onClick={() => { setSelectedSession(s); setSelectedTicket(null); }}
-                    className={`glass-card p-6 cursor-pointer transition-all duration-300 ${
+                    className={`glass-card p-4 sm:p-6 cursor-pointer transition-all duration-300 ${
                       selectedSession === s ? 'border-champagne-500/60 bg-champagne-500/5' : 'hover:border-champagne-500/30'
                     }`}
                   >
@@ -356,13 +356,13 @@ export default function TicketsPage() {
                   <div className="flex justify-between"><span className="text-white/50">Session</span><span className="text-white">Session {order.session} · {SESSION_LABELS[order.session].time}</span></div>
                   <div className="flex justify-between"><span className="text-white/50">Ticket</span><span className="text-white">{TIER_LABELS[order.tier]}</span></div>
                   <div className="flex justify-between"><span className="text-white/50">Food</span><span className="text-white">{SESSION_LABELS[order.session].food}</span></div>
-                  <div className="flex justify-between"><span className="text-white/50">Date</span><span className="text-white">Sunday, August 30, 2026</span></div>
-                  <div className="flex justify-between"><span className="text-white/50">Venue</span><span className="text-white">Hitex Exhibition Center, Hyderabad</span></div>
+                  <div className="flex justify-between"><span className="text-white/50">Date</span><span className="text-white">16 November 2026</span></div>
+                  <div className="flex justify-between"><span className="text-white/50">Venue</span><span className="text-white">Shilpakala Vedika, Hyderabad</span></div>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button onClick={() => window.print()} className="btn-outline">🖨️ Print Ticket</button>
-                <a href={`https://wa.me/?text=${encodeURIComponent(`I'm attending the Telugu Icon Digital & Influencer Awards 2026! Session ${order.session} · ${SESSION_LABELS[order.session].time} · Hitex Exhibition Center, Hyderabad. Order: ${order.order_code}`)}`} target="_blank" rel="noreferrer" className="btn-gold">Share on WhatsApp</a>
+                <a href={`https://wa.me/?text=${encodeURIComponent(`I'm attending the Telugu Icon Digital & Influencer Awards 2026! Session ${order.session} · ${SESSION_LABELS[order.session].time} · Shilpakala Vedika, Hyderabad. Order: ${order.order_code}`)}`} target="_blank" rel="noreferrer" className="btn-gold">Share on WhatsApp</a>
               </div>
             </div>
           )}
