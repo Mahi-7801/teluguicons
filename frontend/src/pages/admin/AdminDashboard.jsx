@@ -1681,18 +1681,18 @@ function MediaTab() {
               />
               <input
                 type="text"
-                placeholder="Article / Asset URL"
-                value={newMedia.url}
-                onChange={(e) => setNewMedia({ ...newMedia, url: e.target.value })}
-                className="input-field"
-              />
-              <input
-                type="text"
                 placeholder="Short Description"
                 value={newMedia.description}
                 onChange={(e) => setNewMedia({ ...newMedia, description: e.target.value })}
                 className="input-field md:col-span-2"
               />
+              <div className="md:col-span-3">
+                <ImageUploader
+                  label="Press Article Cover / Media Asset (Upload File)"
+                  value={newMedia.url}
+                  onChange={(url) => setNewMedia({ ...newMedia, url })}
+                />
+              </div>
               <div className="md:col-span-3">
                 <button type="submit" className="btn-gold !py-2 text-xs">+ Publish Release</button>
               </div>
