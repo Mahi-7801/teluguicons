@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { api, getAssetUrl } from '../../api';
+import { api, getAssetUrl, clearApiCache } from '../../api';
 import ImageUploader from '../../components/ImageUploader';
 
 const TABS = [
@@ -188,7 +188,18 @@ export default function AdminDashboard() {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            <button
+              onClick={() => {
+                clearApiCache();
+                window.location.reload();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-champagne-500/10 hover:bg-champagne-500/20 text-champagne-400 border border-champagne-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all"
+              title="Clear cache and re-fetch real-time data from database"
+            >
+              <span className="text-xs">🔄</span>
+              <span className="hidden sm:inline text-xs">Sync Live Data</span>
+            </button>
             <a href="/" target="_blank" rel="noopener noreferrer" className="btn-outline !px-3 !py-1.5 text-xs">
               View Site ↗
             </a>
@@ -239,23 +250,51 @@ function StatCard({ label, value, icon, accent }) {
 }
 
 function OverviewTab() {
-  const [stats, setStats] = useState(null);
-  useEffect(() => {
-    api.get('/admin/stats').then((data) => {
-      if (data.stats) setStats(data.stats);
-    }).catch(() => {});
-  }, []);
+  const [stats, setStats] = useState({
+    totalNominations: 0,
+    pendingNominations: 0,
+    approvedNominations: 0,
+    verifiedNominations: 0,
+    totalVotes: 0,
+    flaggedVotes: 0,
+    totalNominees: 0,
+    totalCategories: 0,
+    totalSponsors: 0,
+  });
+  const [recentVotes, setRecentVotes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  if (!stats) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-champagne-500/30 border-t-champagne-500 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const loadStats = (force = false) => {
+    setLoading(true);
+    api.get('/admin/stats', { force })
+      .then((data) => {
+        if (data && data.stats) setStats(data.stats);
+        if (Array.isArray(data?.recentVotes)) setRecentVotes(data.recentVotes);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
 
   return (
     <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-white">Live Platform Overview</h1>
+          <p className="text-white/40 text-xs mt-1">Real-time statistics connected directly to your live database.</p>
+        </div>
+        <button
+          onClick={() => loadStats(true)}
+          className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1.5 transition-all"
+          title="Refresh Live Statistics"
+        >
+          <span>🔄</span> Refresh Stats
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Total Nominations" value={stats.totalNominations} icon="📝" />
         <StatCard label="Pending Review" value={stats.pendingNominations} icon="⏳" />
@@ -279,11 +318,28 @@ function OverviewTab() {
         </div>
       )}
       <div className="glass-card p-6">
-        <h2 className="font-display text-xl font-bold text-white mb-4">Vote Audit Overview</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-display text-xl font-bold text-white">Vote Audit Overview</h2>
+            <p className="text-white/40 text-xs mt-1">Real-time incoming vote stream and anti-fraud audit.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => loadStats(true)}
+              className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+              title="Refresh Live Votes"
+            >
+              <span>🔄</span> Refresh
+            </button>
+            <Link to="/admin/votes" className="text-champagne-400 text-xs hover:text-champagne-300 font-semibold underline">
+              View All Votes ({stats.totalVotes}) →
+            </Link>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead>
-              <tr className="text-white/40 text-xs uppercase">
+              <tr className="text-white/40 text-xs uppercase border-b border-white/5">
                 <th className="pb-3 pr-4">Nominee</th>
                 <th className="pb-3 pr-4">Voter</th>
                 <th className="pb-3 pr-4">Date</th>
@@ -291,12 +347,39 @@ function OverviewTab() {
               </tr>
             </thead>
             <tbody className="text-white/70">
-              <tr className="border-t border-white/5">
-                <td className="py-3 pr-4">Loading recent votes...</td>
-                <td />
-                <td />
-                <td />
-              </tr>
+              {loading && recentVotes.length === 0 ? (
+                <tr className="border-t border-white/5">
+                  <td colSpan={4} className="py-6 text-center text-white/40 text-xs animate-pulse">
+                    Loading live vote stream...
+                  </td>
+                </tr>
+              ) : recentVotes.length === 0 ? (
+                <tr className="border-t border-white/5">
+                  <td colSpan={4} className="py-6 text-center text-white/40 text-xs">
+                    No votes recorded yet.
+                  </td>
+                </tr>
+              ) : (
+                recentVotes.map((v) => (
+                  <tr key={v.id} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 pr-4 text-white font-medium">{v.nominee_name}</td>
+                    <td className="py-3 pr-4">
+                      <div className="text-white text-xs">{v.voter_name || 'Anonymous'}</div>
+                      {v.voter_email && <div className="text-[10px] text-white/40">{v.voter_email}</div>}
+                    </td>
+                    <td className="py-3 pr-4 text-white/40 text-xs">
+                      {new Date(v.created_at).toLocaleString()}
+                    </td>
+                    <td className="py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        v.is_flagged ? 'bg-burgundy-900/50 text-burgundy-400 border border-burgundy-500/30' : 'bg-emerald-500/15 text-emerald-400'
+                      }`}>
+                        {v.is_flagged ? '🚩 Flagged' : '✓ Verified'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -307,24 +390,30 @@ function OverviewTab() {
 
 function NominationsTab() {
   const [nominations, setNominations] = useState([]);
-  const [filter, setFilter] = useState('pending');
-  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [editingNomination, setEditingNomination] = useState(null);
 
-  const load = () => {
+  const load = (force = false) => {
     setLoading(true);
-    api.get(`/admin/nominations${filter ? `?status=${filter}` : ''}`).then((data) => {
-      if (Array.isArray(data)) setNominations(data);
-    }).catch((e) => setMessage({ type: 'error', text: e.message })).finally(() => setLoading(false));
+    api.get(`/admin/nominations${filter ? `?status=${filter}` : ''}`, { force })
+      .then((data) => {
+        if (Array.isArray(data)) setNominations(data);
+      })
+      .catch((e) => setMessage({ type: 'error', text: e.message }))
+      .finally(() => setLoading(false));
   };
 
-  useEffect(load, [filter]);
+  useEffect(() => {
+    load();
+  }, [filter]);
 
   const updateStatus = async (id, status) => {
     const res = await api.put(`/admin/nominations/${id}`, { status });
     setMessage({ type: 'success', text: res.message || 'Updated' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -332,7 +421,7 @@ function NominationsTab() {
     if (!window.confirm(`Permanently delete nomination for "${name || 'this creator'}"? This cannot be undone.`)) return;
     const res = await api.delete(`/admin/nominations/${id}`);
     setMessage({ type: 'success', text: res.message || 'Nomination deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -345,30 +434,61 @@ function NominationsTab() {
     });
     setMessage({ type: 'success', text: res.message || 'Nomination updated' });
     setEditingNomination(null);
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const filteredNominations = nominations.filter((n) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      (n.creator_name || '').toLowerCase().includes(s) ||
+      (n.full_name || '').toLowerCase().includes(s) ||
+      (n.category_name || '').toLowerCase().includes(s) ||
+      (n.phone || '').includes(s) ||
+      (n.email || '').toLowerCase().includes(s) ||
+      (n.city || '').toLowerCase().includes(s)
+    );
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        {[
-          { key: '', label: 'All' },
-          { key: 'pending', label: 'Pending ⏳' },
-          { key: 'verified', label: 'Verified ✓' },
-          { key: 'shortlisted', label: 'Shortlisted ✅' },
-          { key: 'rejected', label: 'Rejected ❌' },
-        ].map((f) => (
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: '', label: `All (${nominations.length})` },
+            { key: 'pending', label: 'Pending ⏳' },
+            { key: 'verified', label: 'Verified ✓' },
+            { key: 'shortlisted', label: 'Shortlisted ✅' },
+            { key: 'rejected', label: 'Rejected ❌' },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 ${
+                filter === f.key ? 'bg-champagne-500 text-ink-900 font-bold shadow-sm' : 'bg-ink-800 text-white/60 border border-white/10 hover:border-champagne-500/40'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
           <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
-              filter === f.key ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 border border-white/10 hover:border-champagne-500/40'
-            }`}
+            onClick={() => load(true)}
+            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+            title="Reload Nominations"
           >
-            {f.label}
+            <span>🔄</span> Refresh
           </button>
-        ))}
+        </div>
+        <div className="w-full sm:w-64">
+          <input
+            type="text"
+            placeholder="Search creator, phone, city..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field !py-1.5 !text-xs w-full"
+          />
+        </div>
       </div>
 
       {message && (
@@ -434,12 +554,12 @@ function NominationsTab() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-white/40">Loading...</td></tr>
-              ) : nominations.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-white/40">No nominations found</td></tr>
+              {loading && nominations.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-white/40">Loading nominations...</td></tr>
+              ) : filteredNominations.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-white/40">No nominations found matching criteria.</td></tr>
               ) : (
-                nominations.map((n) => (
+                filteredNominations.map((n) => (
                   <tr key={n.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                     <td className="px-4 py-4">
                       <div className="flex items-center space-x-3">
@@ -500,6 +620,9 @@ function NominationsTab() {
 function NomineesTab() {
   const [nominees, setNominees] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [message, setMessage] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPhotoNominee, setEditingPhotoNominee] = useState(null);
@@ -513,18 +636,23 @@ function NomineesTab() {
     featured: false,
   });
 
-  const load = () => {
-    api.get('/admin/nominees').then(setNominees).catch(() => {});
-    api.get('/categories').then((cats) => {
+  const load = (force = false) => {
+    setLoading(true);
+    Promise.all([
+      api.get('/admin/nominees', { force }).catch(() => []),
+      api.get('/categories', { force }).catch(() => []),
+    ]).then(([noms, cats]) => {
+      if (Array.isArray(noms)) setNominees(noms);
       if (Array.isArray(cats)) setCategories(cats);
-    }).catch(() => {});
+    }).catch((e) => setMessage({ type: 'error', text: e.message }))
+    .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const toggleFeatured = async (n) => {
     const res = await api.put(`/admin/nominees/${n.id}`, { featured: !n.featured });
     setMessage({ type: 'success', text: res.message || 'Updated' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -532,7 +660,7 @@ function NomineesTab() {
     const nextStatus = n.status === 'approved' ? 'archived' : 'approved';
     const res = await api.put(`/admin/nominees/${n.id}`, { status: nextStatus });
     setMessage({ type: 'success', text: res.message || 'Updated' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -540,7 +668,7 @@ function NomineesTab() {
     if (!window.confirm(`Are you sure you want to permanently delete "${name}"? This cannot be undone.`)) return;
     const res = await api.delete(`/admin/nominees/${id}`);
     setMessage({ type: 'success', text: res.message || 'Nominee deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -559,7 +687,7 @@ function NomineesTab() {
     });
     setMessage({ type: 'success', text: res.message || 'Nominee updated!' });
     setEditingNominee(null);
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -573,7 +701,7 @@ function NomineesTab() {
     setMessage({ type: 'success', text: res.message || 'Nominee created!' });
     setNewNominee({ full_name: '', category_id: '', social_handle: '', photo_url: '', bio: '', featured: false });
     setShowAddModal(false);
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -581,9 +709,20 @@ function NomineesTab() {
     const res = await api.put(`/admin/nominees/${nomineeId}`, { photo_url: photoUrl });
     setMessage({ type: 'success', text: res.message || 'Photo updated!' });
     setEditingPhotoNominee(null);
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
+
+  const filteredNominees = (Array.isArray(nominees) ? nominees : []).filter((n) => {
+    const s = search.toLowerCase();
+    const matchesSearch = !search ||
+      (n.full_name || '').toLowerCase().includes(s) ||
+      (n.nominee_code || '').toLowerCase().includes(s) ||
+      (n.social_handle || '').toLowerCase().includes(s) ||
+      (n.category_name || '').toLowerCase().includes(s);
+    const matchesCat = !categoryFilter || String(n.category_id) === String(categoryFilter);
+    return matchesSearch && matchesCat;
+  });
 
   return (
     <div className="space-y-6">
@@ -598,6 +737,36 @@ function NomineesTab() {
         >
           {showAddModal ? '✕ Cancel' : '+ Add Nominee'}
         </button>
+      </div>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex-1 max-w-sm">
+          <input
+            type="text"
+            placeholder="Search nominee by name, handle, or code..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field !py-2 !text-xs w-full"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="input-field !py-2 !text-xs"
+          >
+            <option value="">All Categories ({nominees.length} nominees)</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => load(true)}
+            className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+            title="Reload Nominees"
+          >
+            <span>🔄</span> Refresh
+          </button>
+        </div>
       </div>
 
       {message && (
@@ -816,10 +985,12 @@ function NomineesTab() {
               </tr>
             </thead>
             <tbody>
-              {nominees.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-white/40">No nominees yet. Click "+ Add Nominee" to create one.</td></tr>
+              {loading && nominees.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">Loading nominees...</td></tr>
+              ) : filteredNominees.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">No nominees found matching search or filter.</td></tr>
               ) : (
-                nominees.map((n) => {
+                filteredNominees.map((n) => {
                   const nomineeSlug = n.slug || String(n.id);
                   const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://teluguiconawards.in';
                   const nomineeUrl = `${origin}/nominee/${nomineeSlug}`;
@@ -911,6 +1082,9 @@ function NomineesTab() {
 
 function CategoriesTab() {
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [message, setMessage] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -923,17 +1097,21 @@ function CategoriesTab() {
     voting_open: true,
   });
 
-  const load = () => {
-    api.get('/categories').then((data) => {
-      if (Array.isArray(data)) setCategories(data);
-    }).catch(() => {});
+  const load = (force = false) => {
+    setLoading(true);
+    api.get('/categories', { force })
+      .then((data) => {
+        if (Array.isArray(data)) setCategories(data);
+      })
+      .catch((e) => setMessage({ type: 'error', text: e.message }))
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const toggleVoting = async (c) => {
     const res = await api.put(`/categories/${c.id}`, { voting_open: !c.voting_open });
     setMessage({ type: 'success', text: res.message || 'Updated' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -945,7 +1123,7 @@ function CategoriesTab() {
     setMessage({ type: 'success', text: res.message || 'Category created!' });
     setNewCat({ name: '', slug: '', type: 'self_nomination', description: '', icon: '🏆', voting_open: true });
     setShowAddModal(false);
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -962,7 +1140,7 @@ function CategoriesTab() {
     });
     setMessage({ type: 'success', text: res.message || 'Category updated!' });
     setEditingCategory(null);
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -970,16 +1148,26 @@ function CategoriesTab() {
     if (!window.confirm(`Permanently delete category "${name}"? This cannot be undone.`)) return;
     const res = await api.delete(`/categories/${id}`);
     setMessage({ type: 'success', text: res.message || 'Category deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
+
+  const filteredCategories = (Array.isArray(categories) ? categories : []).filter((c) => {
+    const s = search.toLowerCase();
+    const matchesSearch = !search ||
+      (c.name || '').toLowerCase().includes(s) ||
+      (c.slug || '').toLowerCase().includes(s) ||
+      (c.description || '').toLowerCase().includes(s);
+    const matchesType = !typeFilter || c.type === typeFilter;
+    return matchesSearch && matchesType;
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-white">Categories Management</h2>
-          <p className="text-white/40 text-xs mt-1">Manage official award categories, voting status, and jury designations ({categories.length} total).</p>
+          <p className="text-white/40 text-xs mt-1">Manage official award categories, voting status, and jury designations ({filteredCategories.length} showing).</p>
         </div>
         <button
           onClick={() => setShowAddModal(!showAddModal)}
@@ -987,6 +1175,42 @@ function CategoriesTab() {
         >
           {showAddModal ? '✕ Cancel' : '+ Add Category'}
         </button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex-1 max-w-sm">
+          <input
+            type="text"
+            placeholder="Search categories..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field !py-2 !text-xs w-full"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: '', label: `All (${categories.length})` },
+            { key: 'self_nomination', label: "People's Choice 🏆" },
+            { key: 'jury', label: 'Jury 👑' }
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTypeFilter(t.key)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                typeFilter === t.key ? 'bg-champagne-500 text-ink-900 font-bold' : 'bg-ink-800 text-white/60 border border-white/10 hover:border-champagne-500/40'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+          <button
+            onClick={() => load(true)}
+            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+            title="Reload Categories"
+          >
+            <span>🔄</span> Refresh
+          </button>
+        </div>
       </div>
 
       {message && (
@@ -1120,8 +1344,13 @@ function CategoriesTab() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categories.map((c) => (
+      {loading && categories.length === 0 ? (
+        <div className="text-center py-16 text-white/40">Loading categories...</div>
+      ) : filteredCategories.length === 0 ? (
+        <div className="text-center py-12 text-white/40 text-sm">No categories match your search or filter.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCategories.map((c) => (
           <div key={c.id} className={`glass-card p-5 transition-all duration-300 flex flex-col justify-between ${c.voting_open ? '' : 'opacity-70'}`}>
             <div>
               <div className="flex items-start justify-between mb-3">
@@ -1152,7 +1381,8 @@ function CategoriesTab() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1160,43 +1390,76 @@ function CategoriesTab() {
 function VotesTab() {
   const [votes, setVotes] = useState([]);
   const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const load = () => {
-    api.get(`/admin/votes${flaggedOnly ? '?flagged=1' : ''}`).then((data) => {
-      if (Array.isArray(data)) setVotes(data);
-    }).catch(() => {});
+  const load = (force = false) => {
+    setLoading(true);
+    api.get(`/admin/votes${flaggedOnly ? '?flagged=1' : ''}`, { force })
+      .then((data) => {
+        if (Array.isArray(data)) setVotes(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, [flaggedOnly]);
+  useEffect(() => { load(); }, [flaggedOnly]);
 
   const toggleFlag = async (v) => {
     await api.put(`/admin/votes/${v.id}/flag`, { is_flagged: !v.is_flagged, flag_reason: v.is_flagged ? null : 'Manual review' });
-    load();
+    load(true);
   };
 
   const handleDeleteVote = async (id, nomineeName) => {
     if (!window.confirm(`Permanently delete this vote for ${nomineeName}? The nominee vote count will be decremented.`)) return;
     await api.delete(`/admin/votes/${id}`);
-    load();
+    load(true);
   };
+
+  const filteredVotes = (Array.isArray(votes) ? votes : []).filter((v) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      (v.nominee_name || '').toLowerCase().includes(s) ||
+      (v.voter_name || '').toLowerCase().includes(s) ||
+      (v.voter_phone || '').includes(s) ||
+      (v.voter_email || '').toLowerCase().includes(s) ||
+      (v.ip_address || '').includes(s)
+    );
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFlaggedOnly(false)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${!flaggedOnly ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 border border-white/10'}`}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 ${!flaggedOnly ? 'bg-champagne-500 text-ink-900 font-bold' : 'bg-ink-800 text-white/60 border border-white/10'}`}
           >
-            All Votes
+            All Votes ({votes.length})
           </button>
           <button
             onClick={() => setFlaggedOnly(true)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${flaggedOnly ? 'bg-burgundy-800 text-white border border-burgundy-600' : 'bg-ink-800 text-white/60 border border-white/10'}`}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 ${flaggedOnly ? 'bg-burgundy-800 text-white border border-burgundy-600 font-bold' : 'bg-ink-800 text-white/60 border border-white/10'}`}
           >
             🚩 Flagged Only
           </button>
+          <button
+            onClick={() => load(true)}
+            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+            title="Reload Votes"
+          >
+            <span>🔄</span> Refresh
+          </button>
         </div>
-        <span className="text-white/40 text-sm">{votes.length} votes shown</span>
+        <div className="w-full sm:w-64">
+          <input
+            type="text"
+            placeholder="Search voter, mobile, IP, nominee..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input-field !py-1.5 !text-xs w-full"
+          />
+        </div>
       </div>
       <div className="glass-card">
         <div className="overflow-x-auto">
@@ -1214,10 +1477,12 @@ function VotesTab() {
               </tr>
             </thead>
             <tbody>
-              {votes.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">No votes {flaggedOnly ? 'flagged' : 'recorded'} yet</td></tr>
+              {loading && votes.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">Loading live vote stream...</td></tr>
+              ) : filteredVotes.length === 0 ? (
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">No votes {flaggedOnly ? 'flagged' : 'recorded'} matching search.</td></tr>
               ) : (
-                votes.map((v) => (
+                filteredVotes.map((v) => (
                   <tr key={v.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                     <td className="px-4 py-4 text-white font-medium">{v.nominee_name}</td>
                     <td className="px-4 py-4 text-white/60 text-xs">
@@ -1262,14 +1527,21 @@ function VotesTab() {
 
 function SponsorsTab() {
   const [sponsors, setSponsors] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', tier: 'gold', website_url: '', tagline: '', logo_url: '' });
   const [editingSponsor, setEditingSponsor] = useState(null);
   const [message, setMessage] = useState(null);
 
-  const load = () => {
-    api.get('/admin/sponsors').then(setSponsors).catch(() => {});
+  const load = (force = false) => {
+    setLoading(true);
+    api.get('/admin/sponsors', { force })
+      .then((data) => {
+        if (Array.isArray(data)) setSponsors(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const createSponsor = async (e) => {
     e.preventDefault();
@@ -1375,7 +1647,17 @@ function SponsorsTab() {
       )}
 
       <div className="glass-card p-6">
-        <h2 className="font-display text-xl font-bold text-white mb-4">Add Official Brand Partner</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-xl font-bold text-white">Add Official Brand Partner</h2>
+          <button
+            type="button"
+            onClick={() => load(true)}
+            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+            title="Reload Sponsors"
+          >
+            <span>🔄</span> Refresh
+          </button>
+        </div>
         <form onSubmit={createSponsor} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
             <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Sponsor Brand Name *" className="input-field" required />
@@ -1414,8 +1696,10 @@ function SponsorsTab() {
               </tr>
             </thead>
             <tbody>
-              {sponsors.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-white/40">No sponsors yet</td></tr>
+              {loading && sponsors.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-white/40">Loading official partners...</td></tr>
+              ) : sponsors.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-white/40">No sponsors yet. Use form above to add partners.</td></tr>
               ) : (
                 sponsors.map((s) => (
                   <tr key={s.id} className="border-t border-white/5 hover:bg-white/[0.02]">
@@ -1552,20 +1836,20 @@ function SettingsTab() {
 // ========== TICKETS & CHECK-IN TAB ==========
 function TicketsTab() {
   const [data, setData] = useState({ configs: [], orders: [], stats: {} });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterSession, setFilterSession] = useState('');
   const [message, setMessage] = useState(null);
 
-  const load = () => {
+  const load = (force = false) => {
     setLoading(true);
-    api.get('/admin/tickets')
+    api.get('/admin/tickets', { force })
       .then((res) => { if (res && res.orders) setData(res); })
       .catch((err) => setMessage({ type: 'error', text: err.message }))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const toggleCheckIn = async (order) => {
     const nextState = !order.is_checked_in;
@@ -1671,10 +1955,17 @@ function TicketsTab() {
               <option value="1">Session 1 (Lunch)</option>
               <option value="2">Session 2 (Dinner)</option>
             </select>
+            <button
+              onClick={() => load(true)}
+              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+              title="Reload Tickets & Orders"
+            >
+              <span>🔄</span> Refresh
+            </button>
           </div>
         </div>
 
-        {loading ? (
+        {loading && (data.orders || []).length === 0 ? (
           <div className="text-center py-16 text-white/40">Loading orders...</div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-white/40 text-sm">No matching orders found.</div>
@@ -1743,32 +2034,32 @@ function PastEventsTab() {
   const [activeSubTab, setActiveSubTab] = useState('events'); // 'events' | 'awardees'
   const [events, setEvents] = useState([]);
   const [awardees, setAwardees] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
   // Form states
   const [newEvent, setNewEvent] = useState({ slug: '', name: '', year: 2026, venue: 'Hitex, Hyderabad', description: '', poster_url: '' });
   const [newAwardee, setNewAwardee] = useState({ past_event_id: '', name: '', category: '', award_type: 'Winner', year: 2025, photo_url: '', bio: '' });
 
-  const load = () => {
+  const load = (force = false) => {
     setLoading(true);
     Promise.all([
-      api.get('/admin/past-events').catch(() => []),
-      api.get('/admin/awardees').catch(() => []),
+      api.get('/admin/past-events', { force }).catch(() => []),
+      api.get('/admin/awardees', { force }).catch(() => []),
     ]).then(([evData, awData]) => {
       if (Array.isArray(evData)) setEvents(evData);
       if (Array.isArray(awData)) setAwardees(awData);
     }).finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     const res = await api.post('/admin/past-events', newEvent);
     setMessage({ type: 'success', text: res.message || 'Event created' });
     setNewEvent({ slug: '', name: '', year: 2026, venue: 'Hitex, Hyderabad', description: '', poster_url: '' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -1776,7 +2067,7 @@ function PastEventsTab() {
     if (!confirm('Are you sure you want to delete this event?')) return;
     const res = await api.delete(`/admin/past-events/${id}`);
     setMessage({ type: 'success', text: res.message || 'Event deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -1785,14 +2076,14 @@ function PastEventsTab() {
     const res = await api.post('/admin/awardees', newAwardee);
     setMessage({ type: 'success', text: res.message || 'Awardee added' });
     setNewAwardee({ past_event_id: events[0]?.id || '', name: '', category: '', award_type: 'Winner', year: 2025, photo_url: '', bio: '' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
   const handleDeleteAwardee = async (id) => {
     const res = await api.delete(`/admin/awardees/${id}`);
     setMessage({ type: 'success', text: res.message || 'Awardee removed' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -1805,22 +2096,31 @@ function PastEventsTab() {
       )}
 
       {/* Sub Tabs */}
-      <div className="flex gap-2 border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveSubTab('events')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeSubTab === 'events' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
+            }`}
+          >
+            Past Events Hub ({events.length})
+          </button>
+          <button
+            onClick={() => setActiveSubTab('awardees')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeSubTab === 'awardees' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
+            }`}
+          >
+            Awardees & Hall of Fame ({awardees.length})
+          </button>
+        </div>
         <button
-          onClick={() => setActiveSubTab('events')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'events' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
-          }`}
+          onClick={() => load(true)}
+          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+          title="Reload Events & Awardees"
         >
-          Past Events Hub ({events.length})
-        </button>
-        <button
-          onClick={() => setActiveSubTab('awardees')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'awardees' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
-          }`}
-        >
-          Awardees & Hall of Fame ({awardees.length})
+          <span>🔄</span> Refresh
         </button>
       </div>
 
@@ -2018,38 +2318,38 @@ function MediaTab() {
   const [activeSubTab, setActiveSubTab] = useState('gallery'); // 'gallery' | 'media'
   const [gallery, setGallery] = useState([]);
   const [media, setMedia] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
   const [newGallery, setNewGallery] = useState({ category: 'telugu_icon_2026', url: '', title: '', description: '' });
   const [newMedia, setNewMedia] = useState({ item_type: 'press_release', title: '', description: '', url: '', source: 'TIA PR' });
 
-  const load = () => {
+  const load = (force = false) => {
     setLoading(true);
     Promise.all([
-      api.get('/admin/gallery').catch(() => []),
-      api.get('/admin/media').catch(() => []),
+      api.get('/admin/gallery', { force }).catch(() => []),
+      api.get('/admin/media', { force }).catch(() => []),
     ]).then(([galData, medData]) => {
       if (Array.isArray(galData)) setGallery(galData);
       if (Array.isArray(medData)) setMedia(medData);
     }).finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const handleCreateGallery = async (e) => {
     e.preventDefault();
     const res = await api.post('/admin/gallery', newGallery);
     setMessage({ type: 'success', text: res.message || 'Gallery item added' });
     setNewGallery({ category: 'telugu_icon_2026', url: '', title: '', description: '' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
   const handleDeleteGallery = async (id) => {
     const res = await api.delete(`/admin/gallery/${id}`);
     setMessage({ type: 'success', text: res.message || 'Gallery item deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -2058,14 +2358,14 @@ function MediaTab() {
     const res = await api.post('/admin/media', newMedia);
     setMessage({ type: 'success', text: res.message || 'Media release published' });
     setNewMedia({ item_type: 'press_release', title: '', description: '', url: '', source: 'TIA PR' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
   const handleDeleteMedia = async (id) => {
     const res = await api.delete(`/admin/media/${id}`);
     setMessage({ type: 'success', text: res.message || 'Media release deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -2078,22 +2378,31 @@ function MediaTab() {
       )}
 
       {/* Sub tabs */}
-      <div className="flex gap-2 border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveSubTab('gallery')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeSubTab === 'gallery' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
+            }`}
+          >
+            Photo Gallery ({gallery.length})
+          </button>
+          <button
+            onClick={() => setActiveSubTab('media')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeSubTab === 'media' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
+            }`}
+          >
+            Press Releases & News ({media.length})
+          </button>
+        </div>
         <button
-          onClick={() => setActiveSubTab('gallery')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'gallery' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
-          }`}
+          onClick={() => load(true)}
+          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+          title="Reload Media & Gallery"
         >
-          Photo Gallery ({gallery.length})
-        </button>
-        <button
-          onClick={() => setActiveSubTab('media')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'media' ? 'bg-champagne-500 text-ink-900' : 'bg-ink-800 text-white/60 hover:text-white'
-          }`}
-        >
-          Press Releases & News ({media.length})
+          <span>🔄</span> Refresh
         </button>
       </div>
 
@@ -2229,29 +2538,29 @@ function MediaTab() {
 // ========== SPONSOR LEADS TAB ==========
 function SponsorLeadsTab() {
   const [leads, setLeads] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const load = () => {
+  const load = (force = false) => {
     setLoading(true);
-    api.get('/admin/sponsor-leads')
+    api.get('/admin/sponsor-leads', { force })
       .then((data) => { if (Array.isArray(data)) setLeads(data); })
       .catch((err) => setMessage({ type: 'error', text: err.message }))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const markRead = async (id) => {
     await api.put(`/admin/sponsor-leads/${id}/read`, {});
-    load();
+    load(true);
   };
 
   const deleteLead = async (id, company) => {
     if (!window.confirm(`Delete enquiry from "${company}"?`)) return;
     const res = await api.delete(`/admin/sponsor-leads/${id}`);
     setMessage({ type: 'success', text: res.message || 'Enquiry deleted' });
-    load();
+    load(true);
     setTimeout(() => setMessage(null), 3000);
   };
 
@@ -2261,10 +2570,19 @@ function SponsorLeadsTab() {
         <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">{message.text}</div>
       )}
       <div className="glass-card p-6">
-        <h2 className="font-display text-xl font-bold text-white mb-2">Partner & Sponsor Enquiries</h2>
-        <p className="text-white/40 text-xs mb-6">Inbound leads captured through the "Become a Partner" form.</p>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-display text-xl font-bold text-white">Partner & Sponsor Enquiries</h2>
+          <button
+            onClick={() => load(true)}
+            className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+            title="Reload Inquiries"
+          >
+            <span>🔄</span> Refresh
+          </button>
+        </div>
+        <p className="text-white/40 text-xs mb-6">Inbound leads captured through the "Become a Partner" form ({leads.length} records).</p>
 
-        {loading ? (
+        {loading && leads.length === 0 ? (
           <div className="text-center py-16 text-white/40">Loading partner leads...</div>
         ) : leads.length === 0 ? (
           <div className="text-center py-12 text-white/40 text-sm">No partner inquiries yet.</div>
@@ -2464,13 +2782,18 @@ function PhaseTab() {
 // ========== AUDIT LOGS TAB ==========
 function AuditTab() {
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    api.get('/admin/audit-logs')
+  const load = (force = false) => {
+    setLoading(true);
+    api.get('/admin/audit-logs', { force })
       .then((data) => { if (Array.isArray(data)) setLogs(data); })
       .catch(() => {})
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    load();
   }, []);
 
   const handleExportVotes = () => {
@@ -2484,17 +2807,26 @@ function AuditTab() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="font-display text-xl font-bold text-white">System & Forensic Audit Logs</h2>
-            <p className="text-white/40 text-xs mt-1">Immutable administrative actions and anti-fraud quarantine logs.</p>
+            <p className="text-white/40 text-xs mt-1">Immutable administrative actions and anti-fraud quarantine logs ({logs.length} records).</p>
           </div>
-          <button
-            onClick={handleExportVotes}
-            className="btn-gold !py-2.5 text-xs flex items-center gap-2"
-          >
-            <span>📥</span> Download Full Votes CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => load(true)}
+              className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
+              title="Reload Audit Logs"
+            >
+              <span>🔄</span> Refresh
+            </button>
+            <button
+              onClick={handleExportVotes}
+              className="btn-gold !py-2 text-xs flex items-center gap-2"
+            >
+              <span>📥</span> Export CSV
+            </button>
+          </div>
         </div>
 
-        {loading ? (
+        {loading && logs.length === 0 ? (
           <div className="text-center py-16 text-white/40">Loading audit records...</div>
         ) : logs.length === 0 ? (
           <div className="p-8 text-center rounded-2xl bg-ink-900/40 border border-white/5 text-white/40 text-xs">
