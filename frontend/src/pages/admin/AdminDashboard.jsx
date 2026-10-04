@@ -310,6 +310,7 @@ function NominationsTab() {
   const [filter, setFilter] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
+  const [editingNomination, setEditingNomination] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -323,6 +324,27 @@ function NominationsTab() {
   const updateStatus = async (id, status) => {
     const res = await api.put(`/admin/nominations/${id}`, { status });
     setMessage({ type: 'success', text: res.message || 'Updated' });
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const deleteNomination = async (id, name) => {
+    if (!window.confirm(`Permanently delete nomination for "${name || 'this creator'}"? This cannot be undone.`)) return;
+    const res = await api.delete(`/admin/nominations/${id}`);
+    setMessage({ type: 'success', text: res.message || 'Nomination deleted' });
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleUpdateNomination = async (e) => {
+    e.preventDefault();
+    if (!editingNomination) return;
+    const res = await api.put(`/admin/nominations/${editingNomination.id}`, {
+      status: editingNomination.status,
+      admin_notes: editingNomination.admin_notes,
+    });
+    setMessage({ type: 'success', text: res.message || 'Nomination updated' });
+    setEditingNomination(null);
     load();
     setTimeout(() => setMessage(null), 3000);
   };
@@ -354,6 +376,47 @@ function NominationsTab() {
           message.type === 'success' ? 'bg-emerald-900/30 border border-emerald-500/40 text-emerald-200' : 'bg-burgundy-900/50 border border-burgundy-500/40 text-white/80'
         }`}>
           {message.text}
+        </div>
+      )}
+
+      {/* Edit Nomination Modal */}
+      {editingNomination && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card max-w-md w-full p-6 space-y-4 border border-champagne-500/40">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-sm">Edit Nomination: {editingNomination.creator_name || editingNomination.full_name}</h3>
+              <button onClick={() => setEditingNomination(null)} className="text-white/60 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleUpdateNomination} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-white/70 mb-1">Status</label>
+                <select
+                  value={editingNomination.status}
+                  onChange={(e) => setEditingNomination({ ...editingNomination, status: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="pending">Pending ⏳</option>
+                  <option value="verified">Verified ✓</option>
+                  <option value="shortlisted">Shortlisted ✅ (Promote to Nominee)</option>
+                  <option value="rejected">Rejected ❌</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Admin Internal Notes</label>
+                <textarea
+                  rows={3}
+                  value={editingNomination.admin_notes || ''}
+                  onChange={(e) => setEditingNomination({ ...editingNomination, admin_notes: e.target.value })}
+                  placeholder="Review notes, verification remarks..."
+                  className="input-field"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingNomination(null)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70">Cancel</button>
+                <button type="submit" className="btn-gold !py-1.5 text-xs">Save Changes</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -420,6 +483,8 @@ function NominationsTab() {
                       {n.status === 'shortlisted' && (
                         <button onClick={() => updateStatus(n.id, 'verified')} className="text-white/40 hover:text-white text-xs font-medium">Undo</button>
                       )}
+                      <button onClick={() => setEditingNomination(n)} className="text-champagne-400 hover:text-champagne-300 text-xs font-medium">Edit ✏️</button>
+                      <button onClick={() => deleteNomination(n.id, n.creator_name || n.full_name)} className="text-burgundy-400 hover:text-burgundy-300 text-xs font-medium">Delete 🗑️</button>
                     </td>
                   </tr>
                 ))
@@ -438,6 +503,7 @@ function NomineesTab() {
   const [message, setMessage] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPhotoNominee, setEditingPhotoNominee] = useState(null);
+  const [editingNominee, setEditingNominee] = useState(null);
   const [newNominee, setNewNominee] = useState({
     full_name: '',
     category_id: '',
@@ -466,6 +532,33 @@ function NomineesTab() {
     const nextStatus = n.status === 'approved' ? 'archived' : 'approved';
     const res = await api.put(`/admin/nominees/${n.id}`, { status: nextStatus });
     setMessage({ type: 'success', text: res.message || 'Updated' });
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleDeleteNominee = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${name}"? This cannot be undone.`)) return;
+    const res = await api.delete(`/admin/nominees/${id}`);
+    setMessage({ type: 'success', text: res.message || 'Nominee deleted' });
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleUpdateNominee = async (e) => {
+    e.preventDefault();
+    if (!editingNominee) return;
+    const res = await api.put(`/admin/nominees/${editingNominee.id}`, {
+      full_name: editingNominee.full_name,
+      category_id: editingNominee.category_id,
+      social_handle: editingNominee.social_handle,
+      bio: editingNominee.bio,
+      followers_count: editingNominee.followers_count ? Number(editingNominee.followers_count) : null,
+      featured: editingNominee.featured,
+      status: editingNominee.status,
+      photo_url: editingNominee.photo_url,
+    });
+    setMessage({ type: 'success', text: res.message || 'Nominee updated!' });
+    setEditingNominee(null);
     load();
     setTimeout(() => setMessage(null), 3000);
   };
@@ -609,6 +702,104 @@ function NomineesTab() {
         </div>
       )}
 
+      {/* Full Edit Nominee Modal */}
+      {editingNominee && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass-card max-w-lg w-full p-6 space-y-4 border border-champagne-500/40 my-8">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-sm">Edit Nominee: {editingNominee.full_name}</h3>
+              <button onClick={() => setEditingNominee(null)} className="text-white/60 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleUpdateNominee} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  value={editingNominee.full_name}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, full_name: e.target.value })}
+                  required
+                  className="input-field"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Category *</label>
+                <select
+                  value={editingNominee.category_id}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, category_id: e.target.value })}
+                  required
+                  className="input-field"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Social Handle</label>
+                <input
+                  type="text"
+                  value={editingNominee.social_handle || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, social_handle: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Followers Count</label>
+                <input
+                  type="number"
+                  value={editingNominee.followers_count || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, followers_count: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Short Bio</label>
+                <textarea
+                  rows={3}
+                  value={editingNominee.bio || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, bio: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer text-white/80">
+                  <input
+                    type="checkbox"
+                    checked={!!editingNominee.featured}
+                    onChange={(e) => setEditingNominee({ ...editingNominee, featured: e.target.checked })}
+                    className="rounded text-champagne-500"
+                  />
+                  Featured Nominee
+                </label>
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Status</label>
+                <select
+                  value={editingNominee.status}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, status: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="approved">Approved / Active</option>
+                  <option value="archived">Archived</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <ImageUploader
+                  label="Profile Photo (Upload New or Keep Current)"
+                  value={editingNominee.photo_url || ''}
+                  onChange={(url) => setEditingNominee({ ...editingNominee, photo_url: url })}
+                />
+              </div>
+              <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingNominee(null)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70">Cancel</button>
+                <button type="submit" className="btn-gold !py-1.5 text-xs">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -700,9 +891,11 @@ function NomineesTab() {
                       </button>
                     </td>
                     <td className="px-4 py-4 text-right space-x-2 whitespace-nowrap">
+                      <button onClick={() => setEditingNominee(n)} className="text-xs text-champagne-400 hover:text-champagne-300 font-medium">Edit ✏️</button>
                       <button onClick={() => setEditingPhotoNominee(n)} className="text-xs text-champagne-400 hover:text-champagne-300 font-medium">Photo 📷</button>
                       <a href={`/nominee/${nomineeSlug}`} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white text-xs font-medium">View ↗</a>
                       <button onClick={() => toggleStatus(n)} className="text-white/40 hover:text-white text-xs font-medium">{n.status === 'approved' ? 'Archive' : 'Activate'}</button>
+                      <button onClick={() => handleDeleteNominee(n.id, n.full_name)} className="text-burgundy-400 hover:text-burgundy-300 text-xs font-medium">Delete 🗑️</button>
                     </td>
                   </tr>
                   );
@@ -719,9 +912,21 @@ function NomineesTab() {
 function CategoriesTab() {
   const [categories, setCategories] = useState([]);
   const [message, setMessage] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [newCat, setNewCat] = useState({
+    name: '',
+    slug: '',
+    type: 'self_nomination',
+    description: '',
+    icon: '🏆',
+    voting_open: true,
+  });
 
   const load = () => {
-    api.get('/categories').then(setCategories).catch(() => {});
+    api.get('/categories').then((data) => {
+      if (Array.isArray(data)) setCategories(data);
+    }).catch(() => {});
   };
   useEffect(load, []);
 
@@ -732,37 +937,218 @@ function CategoriesTab() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    if (!newCat.name) return;
+    const slug = newCat.slug || newCat.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const res = await api.post('/categories', { ...newCat, slug });
+    setMessage({ type: 'success', text: res.message || 'Category created!' });
+    setNewCat({ name: '', slug: '', type: 'self_nomination', description: '', icon: '🏆', voting_open: true });
+    setShowAddModal(false);
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    const res = await api.put(`/categories/${editingCategory.id}`, {
+      name: editingCategory.name,
+      slug: editingCategory.slug,
+      type: editingCategory.type,
+      description: editingCategory.description,
+      icon: editingCategory.icon,
+      voting_open: editingCategory.voting_open,
+    });
+    setMessage({ type: 'success', text: res.message || 'Category updated!' });
+    setEditingCategory(null);
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleDeleteCategory = async (id, name) => {
+    if (!window.confirm(`Permanently delete category "${name}"? This cannot be undone.`)) return;
+    const res = await api.delete(`/categories/${id}`);
+    setMessage({ type: 'success', text: res.message || 'Category deleted' });
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-display text-xl font-bold text-white">Categories Management</h2>
+          <p className="text-white/40 text-xs mt-1">Manage official award categories, voting status, and jury designations ({categories.length} total).</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(!showAddModal)}
+          className="btn-gold !py-2 text-xs"
+        >
+          {showAddModal ? '✕ Cancel' : '+ Add Category'}
+        </button>
+      </div>
+
       {message && (
         <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">{message.text}</div>
       )}
-      <div className="glass-card p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-xl font-bold text-white">Category & Voting Control</h2>
-            <p className="text-white/40 text-sm mt-1">Open or close voting for any category instantly.</p>
+
+      {/* Add Category Modal */}
+      {showAddModal && (
+        <div className="glass-card p-6 border border-champagne-500/30">
+          <h3 className="text-sm font-bold text-champagne-300 uppercase tracking-wider mb-4">Create New Award Category</h3>
+          <form onSubmit={handleCreateCategory} className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block text-white/70 mb-1">Category Name *</label>
+              <input
+                type="text"
+                placeholder="e.g. Best Comedy Creator"
+                value={newCat.name}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNewCat({
+                    ...newCat,
+                    name: val,
+                    slug: val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+                  });
+                }}
+                required
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-white/70 mb-1">URL Slug</label>
+              <input
+                type="text"
+                value={newCat.slug}
+                onChange={(e) => setNewCat({ ...newCat, slug: e.target.value })}
+                className="input-field font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-white/70 mb-1">Type</label>
+              <select
+                value={newCat.type}
+                onChange={(e) => setNewCat({ ...newCat, type: e.target.value })}
+                className="input-field"
+              >
+                <option value="self_nomination">Self-Nomination / People's Choice 🏆</option>
+                <option value="jury">Curated / Jury Evaluated 👑</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-white/70 mb-1">Icon / Emoji</label>
+              <input
+                type="text"
+                value={newCat.icon}
+                onChange={(e) => setNewCat({ ...newCat, icon: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-white/70 mb-1">Description / Eligibility Criteria</label>
+              <textarea
+                rows={2}
+                value={newCat.description}
+                onChange={(e) => setNewCat({ ...newCat, description: e.target.value })}
+                placeholder="Criteria for creators in this category..."
+                className="input-field"
+              />
+            </div>
+            <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowAddModal(false)} className="px-3 py-1.5 rounded-lg bg-white/5 text-white/70">Cancel</button>
+              <button type="submit" className="btn-gold !py-1.5 text-xs">Create Category</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card max-w-lg w-full p-6 space-y-4 border border-champagne-500/40">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-sm">Edit Category: {editingCategory.name}</h3>
+              <button onClick={() => setEditingCategory(null)} className="text-white/60 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleUpdateCategory} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                  required
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Type</label>
+                <select
+                  value={editingCategory.type}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, type: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="self_nomination">Self-Nomination / People's Choice 🏆</option>
+                  <option value="jury">Curated / Jury Evaluated 👑</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Icon / Emoji</label>
+                <input
+                  type="text"
+                  value={editingCategory.icon || ''}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, icon: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  value={editingCategory.description || ''}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingCategory(null)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70">Cancel</button>
+                <button type="submit" className="btn-gold !py-1.5 text-xs">Save Changes</button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {categories.map((c) => (
-          <div key={c.id} className={`glass-card p-5 transition-all duration-300 ${c.voting_open ? '' : 'opacity-60'}`}>
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-2xl">{c.type === 'jury' ? '👑' : '🏆'}</span>
-              <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-white/10 text-white/50">{c.type === 'jury' ? 'Jury' : 'Self-Nomination'}</span>
+          <div key={c.id} className={`glass-card p-5 transition-all duration-300 flex flex-col justify-between ${c.voting_open ? '' : 'opacity-70'}`}>
+            <div>
+              <div className="flex items-start justify-between mb-3">
+                <span className="text-2xl">{c.icon || (c.type === 'jury' ? '👑' : '🏆')}</span>
+                <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-white/10 text-white/50">{c.type === 'jury' ? 'Jury' : "People's Choice"}</span>
+              </div>
+              <h3 className="font-semibold text-white mb-1">{c.name}</h3>
+              {c.description && (
+                <p className="text-white/40 text-xs line-clamp-2 mt-1">{c.description}</p>
+              )}
             </div>
-            <h3 className="font-semibold text-white mb-1">{c.name}</h3>
-            <div className="flex items-center justify-between mt-4">
-              <span className={`text-xs font-medium ${c.voting_open ? 'text-emerald-400' : 'text-white/40'}`}>
-                {c.voting_open ? '● Voting Open' : '○ Voting Closed'}
-              </span>
-              <button
-                onClick={() => toggleVoting(c)}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${c.voting_open ? 'bg-emerald-500' : 'bg-ink-700 border border-white/20'}`}
-              >
-                <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all duration-300 ${c.voting_open ? 'left-[22px] bg-white' : 'left-0.5 bg-white/60'}`} />
-              </button>
+            <div className="pt-4 border-t border-white/5 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-xs font-medium ${c.voting_open ? 'text-emerald-400' : 'text-white/40'}`}>
+                  {c.voting_open ? '● Voting Open' : '○ Voting Closed'}
+                </span>
+                <button
+                  onClick={() => toggleVoting(c)}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${c.voting_open ? 'bg-emerald-500' : 'bg-ink-700 border border-white/20'}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all duration-300 ${c.voting_open ? 'left-[22px] bg-white' : 'left-0.5 bg-white/60'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-end gap-2 text-xs">
+                <button onClick={() => setEditingCategory(c)} className="text-champagne-400 hover:text-champagne-300 font-medium">Edit ✏️</button>
+                <button onClick={() => handleDeleteCategory(c.id, c.name)} className="text-burgundy-400 hover:text-burgundy-300 font-medium ml-2">Delete 🗑️</button>
+              </div>
             </div>
           </div>
         ))}
@@ -784,6 +1170,12 @@ function VotesTab() {
 
   const toggleFlag = async (v) => {
     await api.put(`/admin/votes/${v.id}/flag`, { is_flagged: !v.is_flagged, flag_reason: v.is_flagged ? null : 'Manual review' });
+    load();
+  };
+
+  const handleDeleteVote = async (id, nomineeName) => {
+    if (!window.confirm(`Permanently delete this vote for ${nomineeName}? The nominee vote count will be decremented.`)) return;
+    await api.delete(`/admin/votes/${id}`);
     load();
   };
 
@@ -818,15 +1210,16 @@ function VotesTab() {
                 <th className="px-4 py-4 text-left">Date</th>
                 <th className="px-4 py-4 text-left">IP</th>
                 <th className="px-4 py-4 text-left">Flag</th>
+                <th className="px-4 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {votes.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-white/40">No votes {flaggedOnly ? 'flagged' : 'recorded'} yet</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">No votes {flaggedOnly ? 'flagged' : 'recorded'} yet</td></tr>
               ) : (
                 votes.map((v) => (
                   <tr key={v.id} className="border-t border-white/5 hover:bg-white/[0.02]">
-                    <td className="px-4 py-4 text-white">{v.nominee_name}</td>
+                    <td className="px-4 py-4 text-white font-medium">{v.nominee_name}</td>
                     <td className="px-4 py-4 text-white/60 text-xs">
                       {v.voter_name || 'Anonymous'}<br />{v.voter_email || ''}
                     </td>
@@ -848,6 +1241,14 @@ function VotesTab() {
                         {v.is_flagged ? `🚩 ${v.flag_reason || 'Flagged'}` : 'Flag'}
                       </button>
                     </td>
+                    <td className="px-4 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteVote(v.id, v.nominee_name)}
+                        className="text-burgundy-400 hover:text-burgundy-300 text-xs font-medium"
+                      >
+                        Delete 🗑️
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -862,6 +1263,7 @@ function VotesTab() {
 function SponsorsTab() {
   const [sponsors, setSponsors] = useState([]);
   const [form, setForm] = useState({ name: '', tier: 'gold', website_url: '', tagline: '', logo_url: '' });
+  const [editingSponsor, setEditingSponsor] = useState(null);
   const [message, setMessage] = useState(null);
 
   const load = () => {
@@ -878,7 +1280,18 @@ function SponsorsTab() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const updateSponsor = async (e) => {
+    e.preventDefault();
+    if (!editingSponsor) return;
+    const res = await api.put(`/admin/sponsors/${editingSponsor.id}`, editingSponsor);
+    setMessage({ type: 'success', text: res.message || 'Sponsor updated' });
+    setEditingSponsor(null);
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   const deleteSponsor = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this sponsor?')) return;
     const res = await api.delete(`/admin/sponsors/${id}`);
     setMessage({ type: 'success', text: res.message || 'Sponsor deleted' });
     load();
@@ -895,6 +1308,72 @@ function SponsorsTab() {
       {message && (
         <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">{message.text}</div>
       )}
+
+      {/* Edit Sponsor Modal */}
+      {editingSponsor && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="glass-card max-w-lg w-full p-6 space-y-4 border border-champagne-500/40">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <h3 className="font-bold text-white text-sm">Edit Sponsor: {editingSponsor.name}</h3>
+              <button onClick={() => setEditingSponsor(null)} className="text-white/60 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={updateSponsor} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-white/70 mb-1">Brand Name *</label>
+                <input
+                  type="text"
+                  value={editingSponsor.name}
+                  onChange={(e) => setEditingSponsor({ ...editingSponsor, name: e.target.value })}
+                  required
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Partnership Tier</label>
+                <select
+                  value={editingSponsor.tier}
+                  onChange={(e) => setEditingSponsor({ ...editingSponsor, tier: e.target.value })}
+                  className="input-field"
+                >
+                  {['title_partner', 'powered_by', 'co_powered_by', 'gold', 'silver', 'category_partner', 'media_partner', 'digital_partner', 'travel_partner'].map((t) => (
+                    <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Website URL</label>
+                <input
+                  type="url"
+                  value={editingSponsor.website_url || ''}
+                  onChange={(e) => setEditingSponsor({ ...editingSponsor, website_url: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Tagline</label>
+                <input
+                  type="text"
+                  value={editingSponsor.tagline || ''}
+                  onChange={(e) => setEditingSponsor({ ...editingSponsor, tagline: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <ImageUploader
+                  label="Brand Logo (Upload File)"
+                  value={editingSponsor.logo_url || ''}
+                  onChange={(url) => setEditingSponsor({ ...editingSponsor, logo_url: url })}
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditingSponsor(null)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white/70">Cancel</button>
+                <button type="submit" className="btn-gold !py-1.5 text-xs">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card p-6">
         <h2 className="font-display text-xl font-bold text-white mb-4">Add Official Brand Partner</h2>
         <form onSubmit={createSponsor} className="space-y-4">
@@ -966,8 +1445,9 @@ function SponsorsTab() {
                         {s.is_active ? '● Active' : '○ Inactive'}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-right">
-                      <button onClick={() => deleteSponsor(s.id)} className="text-burgundy-400 hover:text-burgundy-300 text-xs">Delete</button>
+                    <td className="px-4 py-4 text-right space-x-2">
+                      <button onClick={() => setEditingSponsor(s)} className="text-champagne-400 hover:text-champagne-300 text-xs font-medium">Edit ✏️</button>
+                      <button onClick={() => deleteSponsor(s.id)} className="text-burgundy-400 hover:text-burgundy-300 text-xs font-medium">Delete 🗑️</button>
                     </td>
                   </tr>
                 ))
@@ -1767,8 +2247,19 @@ function SponsorLeadsTab() {
     load();
   };
 
+  const deleteLead = async (id, company) => {
+    if (!window.confirm(`Delete enquiry from "${company}"?`)) return;
+    const res = await api.delete(`/admin/sponsor-leads/${id}`);
+    setMessage({ type: 'success', text: res.message || 'Enquiry deleted' });
+    load();
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   return (
     <div className="space-y-6">
+      {message && (
+        <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">{message.text}</div>
+      )}
       <div className="glass-card p-6">
         <h2 className="font-display text-xl font-bold text-white mb-2">Partner & Sponsor Enquiries</h2>
         <p className="text-white/40 text-xs mb-6">Inbound leads captured through the "Become a Partner" form.</p>
@@ -1808,14 +2299,22 @@ function SponsorLeadsTab() {
                       </p>
                     )}
                   </div>
-                  {!lead.is_read && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!lead.is_read && (
+                      <button
+                        onClick={() => markRead(lead.id)}
+                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-xs shrink-0"
+                      >
+                        Mark Read
+                      </button>
+                    )}
                     <button
-                      onClick={() => markRead(lead.id)}
-                      className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-xs shrink-0"
+                      onClick={() => deleteLead(lead.id, lead.company)}
+                      className="px-3 py-1.5 rounded-lg bg-burgundy-900/30 hover:bg-burgundy-900/50 text-burgundy-300 border border-burgundy-500/20 text-xs"
                     >
-                      Mark Read
+                      Delete 🗑️
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}

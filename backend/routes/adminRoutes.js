@@ -139,6 +139,15 @@ router.put('/nominations/:id', async (req, res) => {
   }
 });
 
+router.delete('/nominations/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM nominations WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Nomination deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.get('/nominees', async (req, res) => {
   try {
     const [rows] = await pool.query(
@@ -232,6 +241,20 @@ router.put('/votes/:id/flag', async (req, res) => {
       [is_flagged ? 1 : 0, flag_reason || null, req.params.id]
     );
     res.json({ message: 'Vote updated' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/votes/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT nominee_id FROM votes WHERE id = ?', [req.params.id]);
+    if (rows.length > 0) {
+      const nomineeId = rows[0].nominee_id;
+      await pool.query('DELETE FROM votes WHERE id = ?', [req.params.id]);
+      await pool.query('UPDATE nominees SET vote_count = GREATEST(0, vote_count - 1) WHERE id = ?', [nomineeId]);
+    }
+    res.json({ message: 'Vote deleted and vote count updated' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -472,6 +495,28 @@ router.post('/awardees', async (req, res) => {
   }
 });
 
+router.put('/awardees/:id', async (req, res) => {
+  try {
+    const { past_event_id, name, category, award_type, photo_url, bio, social_handle, year } = req.body;
+    await pool.query(
+      `UPDATE awardees SET
+         past_event_id = COALESCE(?, past_event_id),
+         name = COALESCE(?, name),
+         category = COALESCE(?, category),
+         award_type = COALESCE(?, award_type),
+         photo_url = COALESCE(?, photo_url),
+         bio = COALESCE(?, bio),
+         social_handle = COALESCE(?, social_handle),
+         year = COALESCE(?, year)
+       WHERE id = ?`,
+      [past_event_id, name, category, award_type, photo_url, bio, social_handle, year, req.params.id]
+    );
+    res.json({ message: 'Awardee updated' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.delete('/awardees/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM awardees WHERE id = ?', [req.params.id]);
@@ -501,6 +546,28 @@ router.post('/gallery', async (req, res) => {
       [category || 'general', item_type || 'image', url, thumbnail_url || null, title || null, description || null, sort_order || 0, is_published === 0 ? 0 : 1]
     );
     res.status(201).json({ message: 'Gallery item added', id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.put('/gallery/:id', async (req, res) => {
+  try {
+    const { category, item_type, url, thumbnail_url, title, description, sort_order, is_published } = req.body;
+    await pool.query(
+      `UPDATE gallery_items SET
+         category = COALESCE(?, category),
+         item_type = COALESCE(?, item_type),
+         url = COALESCE(?, url),
+         thumbnail_url = COALESCE(?, thumbnail_url),
+         title = COALESCE(?, title),
+         description = COALESCE(?, description),
+         sort_order = COALESCE(?, sort_order),
+         is_published = COALESCE(?, is_published)
+       WHERE id = ?`,
+      [category, item_type, url, thumbnail_url, title, description, sort_order, is_published, req.params.id]
+    );
+    res.json({ message: 'Gallery item updated' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -540,6 +607,29 @@ router.post('/media', async (req, res) => {
   }
 });
 
+router.put('/media/:id', async (req, res) => {
+  try {
+    const { item_type, title, description, url, thumbnail_url, source, published_date, sort_order, is_published } = req.body;
+    await pool.query(
+      `UPDATE media_items SET
+         item_type = COALESCE(?, item_type),
+         title = COALESCE(?, title),
+         description = COALESCE(?, description),
+         url = COALESCE(?, url),
+         thumbnail_url = COALESCE(?, thumbnail_url),
+         source = COALESCE(?, source),
+         published_date = COALESCE(?, published_date),
+         sort_order = COALESCE(?, sort_order),
+         is_published = COALESCE(?, is_published)
+       WHERE id = ?`,
+      [item_type, title, description, url, thumbnail_url, source, published_date, sort_order, is_published, req.params.id]
+    );
+    res.json({ message: 'Media release updated' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.delete('/media/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM media_items WHERE id = ?', [req.params.id]);
@@ -563,6 +653,15 @@ router.put('/sponsor-leads/:id/read', async (req, res) => {
   try {
     await pool.query('UPDATE sponsor_leads SET is_read = 1 WHERE id = ?', [req.params.id]);
     res.json({ message: 'Sponsor lead marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.delete('/sponsor-leads/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM sponsor_leads WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Sponsor lead deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
