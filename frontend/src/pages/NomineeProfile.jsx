@@ -4,7 +4,12 @@ import PageTransition from '../components/PageTransition';
 import OtpVote from '../components/OtpVote';
 import { api, getAssetUrl, API_BASE } from '../api';
 
-const SITE_URL = 'https://teluguiconawards.in';
+const getSiteUrl = () => {
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    return window.location.origin;
+  }
+  return 'https://teluguiconawards.in';
+};
 
 // ── Tiny QR code generator (no library needed) using Google Charts API ──
 function QRCode({ value, size = 160 }) {
@@ -26,6 +31,7 @@ function QRCode({ value, size = 160 }) {
 function useNomineeMetaTags(nominee) {
   useEffect(() => {
     if (!nominee) return;
+    const siteUrl = getSiteUrl();
     const prev = {
       title: document.title,
       desc: document.querySelector('meta[name="description"]')?.content,
@@ -37,8 +43,8 @@ function useNomineeMetaTags(nominee) {
 
     const title = `${nominee.full_name} — ${nominee.category_name} | Telugu Icon Digital & Influencer Awards 2026`;
     const desc = `${nominee.full_name} is an Official Nominee for ${nominee.category_name} at the Telugu Icon Digital & Influencer Awards 2026. Vote now and support your favourite Telugu creator!`;
-    const canonicalUrl = `${SITE_URL}/nominee/${nominee.slug || nominee.id}`;
-    const photoUrl = nominee.photo_url ? getAssetUrl(nominee.photo_url) : `${SITE_URL}/og-default.jpg`;
+    const canonicalUrl = `${siteUrl}/nominee/${nominee.slug || nominee.id}`;
+    const photoUrl = nominee.photo_url ? getAssetUrl(nominee.photo_url) : `${siteUrl}/og-default.jpg`;
 
     document.title = title;
     setMeta('description', desc);
@@ -119,8 +125,9 @@ export default function NomineeProfile() {
     setTimeout(() => setCopiedKey(null), 2000);
   }, []);
 
-  const nomineeUrl = nominee ? `${SITE_URL}/nominee/${nominee.slug || nominee.id}` : '';
-  const voteUrl = nominee ? `${SITE_URL}/nominee/${nominee.slug || nominee.id}?vote=true` : '';
+  const siteUrl = getSiteUrl();
+  const nomineeUrl = nominee ? `${siteUrl}/nominee/${nominee.slug || nominee.id}` : '';
+  const voteUrl = nominee ? `${siteUrl}/nominee/${nominee.slug || nominee.id}?vote=true` : '';
   const waText = nominee
     ? `🏆 Vote for *${nominee.full_name}* — Official Nominee at the *Telugu Icon Digital & Influencer Awards 2026* in *${nominee.category_name}*!\n\n👉 Vote here (30 sec OTP vote):\n${voteUrl}\n\nSupport your favourite Telugu creator! 🙏\n#TeluguIconAwards2026 #TIA2026`
     : '';

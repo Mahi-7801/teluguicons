@@ -140,7 +140,8 @@ export default function NomineeKit() {
 
       ctx.fillStyle = '#D4AF37';
       ctx.font = 'bold 42px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('teluguiconawards.com/vote', 540, 1140);
+      const hostLabel = (typeof window !== 'undefined' && window.location.host) || 'teluguiconawards.in';
+      ctx.fillText(`${hostLabel}/vote`, 540, 1140);
 
       // Footer
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
@@ -159,8 +160,9 @@ export default function NomineeKit() {
     a.click();
   };
 
+  const originUrl = (typeof window !== 'undefined' && window.location.origin) || 'https://teluguiconawards.in';
   const shareTextWhatsApp = selectedNominee
-    ? `🏆 Hey friends and family! I'm thrilled to share that I have been nominated for *${selectedNominee.category_name || 'Creator of the Year'}* at the prestigious *Telugu Icon Digital & Influencer Awards 2026*!\n\nYour support has made this journey possible. Please take 30 seconds to cast your OTP-verified vote for me:\n\n👉 Vote here: https://teluguiconawards.com/nominee/${selectedNominee.slug || selectedNominee.id}\n\nThank you for believing in me! 🙏✨ #TeluguIconAwards #TIA2026`
+    ? `🏆 Hey friends and family! I'm thrilled to share that I have been nominated for *${selectedNominee.category_name || 'Creator of the Year'}* at the prestigious *Telugu Icon Digital & Influencer Awards 2026*!\n\nYour support has made this journey possible. Please take 30 seconds to cast your OTP-verified vote for me:\n\n👉 Vote here: ${originUrl}/nominee/${selectedNominee.slug || selectedNominee.id}\n\nThank you for believing in me! 🙏✨ #TeluguIconAwards #TIA2026`
     : '';
 
   const shareTextInstagram = selectedNominee

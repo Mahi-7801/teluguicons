@@ -630,8 +630,9 @@ function NomineesTab() {
               ) : (
                 nominees.map((n) => {
                   const nomineeSlug = n.slug || String(n.id);
-                  const nomineeUrl = `https://teluguiconawards.in/nominee/${nomineeSlug}`;
-                  const voteUrl = `https://teluguiconawards.in/vote/${nomineeSlug}`;
+                  const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://teluguiconawards.in';
+                  const nomineeUrl = `${origin}/nominee/${nomineeSlug}`;
+                  const voteUrl = `${origin}/vote/${nomineeSlug}`;
                   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(voteUrl)}&size=60x60&bgcolor=0a0a0a&color=D4AF37&margin=4&format=png`;
                   return (
                   <tr key={n.id} className="border-t border-white/5 hover:bg-white/[0.02]">
