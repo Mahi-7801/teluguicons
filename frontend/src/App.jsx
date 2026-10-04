@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -50,6 +50,7 @@ export default function App() {
                     <Route path="/vote" element={<VotePage />} />
                     <Route path="/nominees" element={<NomineesPage />} />
                     <Route path="/nominee/:id" element={<NomineeProfile />} />
+                    <Route path="/vote/:slug" element={<VoteRedirect />} />
                     <Route path="/nominee-kit" element={<NomineeKit />} />
                     <Route path="/tickets" element={<TicketsPage />} />
                     <Route path="/past-events" element={<PastEventsPage />} />
@@ -90,6 +91,12 @@ function AdminRoutes() {
       <Route path="/*" element={<AdminDashboard />} />
     </Routes>
   );
+}
+
+// Direct vote URL: /vote/:slug → /nominee/:slug?vote=true
+function VoteRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/nominee/${slug}?vote=true`} replace />;
 }
 
 function NotFound() {

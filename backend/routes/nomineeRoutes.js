@@ -44,12 +44,25 @@ router.get('/featured', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const rows = await cached(`nominee:${req.params.id}`, 30, async () => {
-      const [rows] = await pool.query(
-        `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.description AS category_description
-         FROM nominees n JOIN categories c ON n.category_id = c.id WHERE n.id::text = ? OR n.slug = ? LIMIT 1`,
-        [req.params.id, req.params.id]
-      );
+    const { id } = req.params;
+    const isNumeric = /^\d+$/.test(id);
+    const rows = await cached(`nominee:${id}`, 30, async () => {
+      let sql;
+      let params;
+      if (isNumeric) {
+        // Try by numeric ID first, then fall back to slug
+        sql = `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.description AS category_description, c.voting_open
+               FROM nominees n JOIN categories c ON n.category_id = c.id
+               WHERE (n.id = $1 OR n.slug = $2) AND n.status = 'approved' LIMIT 1`;
+        params = [parseInt(id, 10), id];
+      } else {
+        // Slug lookup
+        sql = `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.description AS category_description, c.voting_open
+               FROM nominees n JOIN categories c ON n.category_id = c.id
+               WHERE n.slug = $1 AND n.status = 'approved' LIMIT 1`;
+        params = [id];
+      }
+      const [rows] = await pool.query(sql, params);
       return rows;
     });
     if (rows.length === 0) {
@@ -60,5 +73,6 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
 
 module.exports = router;

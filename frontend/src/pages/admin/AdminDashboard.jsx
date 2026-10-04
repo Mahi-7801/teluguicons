@@ -617,6 +617,7 @@ function NomineesTab() {
                 <th className="px-4 py-4 text-left">Nominee</th>
                 <th className="px-4 py-4 text-left">Category</th>
                 <th className="px-4 py-4 text-left">Code</th>
+                <th className="px-4 py-4 text-left">URL / QR</th>
                 <th className="px-4 py-4 text-left">Votes</th>
                 <th className="px-4 py-4 text-left">Status</th>
                 <th className="px-4 py-4 text-left">Featured</th>
@@ -627,7 +628,12 @@ function NomineesTab() {
               {nominees.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-white/40">No nominees yet. Click "+ Add Nominee" to create one.</td></tr>
               ) : (
-                nominees.map((n) => (
+                nominees.map((n) => {
+                  const nomineeSlug = n.slug || String(n.id);
+                  const nomineeUrl = `https://teluguiconawards.in/nominee/${nomineeSlug}`;
+                  const voteUrl = `https://teluguiconawards.in/vote/${nomineeSlug}`;
+                  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(voteUrl)}&size=60x60&bgcolor=0a0a0a&color=D4AF37&margin=4&format=png`;
+                  return (
                   <tr key={n.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                     <td className="px-4 py-4">
                       <div className="flex items-center space-x-3">
@@ -660,7 +666,23 @@ function NomineesTab() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-white/60 text-xs">{n.category_name || '—'}</td>
-                    <td className="px-4 py-4 text-white/40 text-xs">{n.nominee_code || '—'}</td>
+                    <td className="px-4 py-4 text-white/40 text-xs font-mono">{n.nominee_code || '—'}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <a href={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(voteUrl)}&size=400x400&bgcolor=0a0a0a&color=D4AF37&margin=10`} target="_blank" rel="noreferrer" title="Download QR Code">
+                          <img src={qrSrc} alt="QR" className="w-[30px] h-[30px] rounded opacity-80 hover:opacity-100" loading="lazy" />
+                        </a>
+                        <div className="min-w-0">
+                          <div className="text-white/40 text-[10px] font-mono truncate max-w-[120px]">/nominee/{nomineeSlug}</div>
+                          <button
+                            onClick={() => { navigator.clipboard?.writeText(voteUrl); }}
+                            className="text-[10px] text-champagne-400/70 hover:text-champagne-300 underline"
+                          >
+                            Copy vote link
+                          </button>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-4 py-4 text-white font-medium">{n.vote_count?.toLocaleString()}</td>
                     <td className="px-4 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -678,11 +700,12 @@ function NomineesTab() {
                     </td>
                     <td className="px-4 py-4 text-right space-x-2 whitespace-nowrap">
                       <button onClick={() => setEditingPhotoNominee(n)} className="text-xs text-champagne-400 hover:text-champagne-300 font-medium">Photo 📷</button>
-                      <a href={`/nominee/${n.id}`} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white text-xs font-medium">View ↗</a>
+                      <a href={`/nominee/${nomineeSlug}`} target="_blank" rel="noreferrer" className="text-white/70 hover:text-white text-xs font-medium">View ↗</a>
                       <button onClick={() => toggleStatus(n)} className="text-white/40 hover:text-white text-xs font-medium">{n.status === 'approved' ? 'Archive' : 'Activate'}</button>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
