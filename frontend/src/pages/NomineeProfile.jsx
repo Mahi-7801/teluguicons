@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, Navigate } from 'react-router-dom';
 import PageTransition from '../components/PageTransition';
 import OtpVote from '../components/OtpVote';
-import QrCode from '../components/QrCode';
+import QrBlock from '../components/QrBlock';
 import { api, getAssetUrl } from '../api';
 import {
   getSiteUrl,
@@ -380,25 +380,28 @@ export default function NomineeProfile() {
       <section className="bg-ink-900 py-6 px-4">
         <div className="max-w-lg mx-auto">
           <div className="glass-card p-5 flex flex-col sm:flex-row items-center gap-5 border border-champagne-500/20">
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <QrCode value={qrUrl(nominee)} size={140} className="bg-white p-1" />
-              <span className="text-champagne-400/60 text-[10px] uppercase tracking-widest font-bold">
-                Scan to Vote
-              </span>
-            </div>
+            <QrBlock value={qrUrl(nominee)} size={140} />
             <div className="flex-1 text-center sm:text-left">
               <h2 className="font-display text-lg font-bold text-white mb-1">📲 SCAN QR TO VOTE</h2>
               <p className="text-white/40 text-xs mb-3 leading-relaxed">
                 This unique QR code opens {nominee.full_name}&apos;s voting page directly — no search, no menus.
                 Print it on posters, stories, reels and prints.
               </p>
-              <button
-                onClick={handleQrDownload}
-                disabled={qrDownloading}
-                className="btn-gold text-xs !py-2 !px-4 w-full sm:w-auto disabled:opacity-50"
-              >
-                {qrDownloading ? 'Preparing...' : '⬇ Download QR Code'}
-              </button>
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                <button
+                  onClick={handleQrDownload}
+                  disabled={qrDownloading}
+                  className="btn-gold text-xs !py-2 !px-4 disabled:opacity-50"
+                >
+                  {qrDownloading ? 'Preparing...' : '⬇ Download QR Code'}
+                </button>
+                <button
+                  onClick={() => copyToClipboard(qrUrl(nominee), 'qr-url')}
+                  className="btn-outline text-xs !py-2 !px-4"
+                >
+                  {copiedKey === 'qr-url' ? '✓ Copied!' : '🔗 Copy QR Link'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

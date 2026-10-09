@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PageTransition from '../components/PageTransition';
+import QrBlock from '../components/QrBlock';
 import { api, getAssetUrl } from '../api';
 import {
   nomineeUrl,
@@ -196,6 +197,7 @@ export default function NomineeKit() {
   const [selectedNominee, setSelectedNominee] = useState(null);
   const [search, setSearch] = useState('');
   const [copiedKey, setCopiedKey] = useState(null);
+  const [posterWarning, setPosterWarning] = useState(null);
   const posterRef = useRef(null);
   const storyRef = useRef(null);
 
@@ -237,7 +239,16 @@ export default function NomineeKit() {
     (async () => {
       try {
         track(selectedNominee.id, 'kit_view');
-        const qrImage = await loadImage(await qrDataUrl(qrUrl(selectedNominee), 640));
+        const qrValue = qrUrl(selectedNominee);
+        // Local generation first; if the module or canvas fails, fall back to a
+        // remote image. The poster must never silently ship without a QR.
+        let qrSource;
+        try {
+          qrSource = await qrDataUrl(qrValue, 640);
+        } catch (_) {
+          qrSource = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=640x640&margin=8&format=png`;
+        }
+        const qrImage = await loadImage(qrSource);
         const poster = await buildPoster(selectedNominee, { width: POSTER_WIDTH, height: POSTER_HEIGHT }, qrImage);
         const story = await buildPoster(selectedNominee, { width: STORY_WIDTH, height: STORY_HEIGHT }, qrImage);
         if (cancelled) return;
@@ -249,8 +260,10 @@ export default function NomineeKit() {
         };
         copy(poster, posterRef.current);
         copy(story, storyRef.current);
+        setPosterWarning(qrImage ? null : 'The QR code could not be generated. Do not print this poster without reloading — the printed URL is still correct.');
       } catch (error) {
         console.error('Poster generation failed:', error);
+        setPosterWarning('Poster generation failed. Please reload this page.');
       }
     })();
 
@@ -303,6 +316,11 @@ export default function NomineeKit() {
 
       <section className="py-10 sm:py-14 bg-ink-900 min-h-screen">
         <div className="max-w-7xl mx-auto px-4">
+          {posterWarning && (
+            <div className="mb-6 px-4 py-3 rounded-xl bg-champagne-900/30 border border-champagne-500/40 text-champagne-200 text-xs">
+              {posterWarning}
+            </div>
+          )}
           {/* Nominee selector */}
           <div className="mb-8 sm:mb-10 max-w-xl mx-auto">
             <label className="block text-xs font-bold text-champagne-400 uppercase tracking-wider mb-2 text-center">
@@ -380,6 +398,29 @@ export default function NomineeKit() {
                 <p className="text-white/40 text-xs mb-4">
                   Approved for {selectedNominee.full_name} · {selectedNominee.category_name} · {kitUrl}
                 </p>
+
+                {/* Live QR preview with the URL it encodes, so it can be verified
+                    before anything is printed or shared. */}
+                <div className="flex flex-col sm:flex-row items-center gap-5 p-4 mb-4 rounded-2xl bg-ink-900/60 border border-champagne-500/20">
+                  <QrBlock value={qrUrl(selectedNominee)} size={150} />
+                  <div className="flex-1 text-center sm:text-left">
+                    <h4 className="font-bold text-white text-sm mb-1">My QR Code</h4>
+                    <p className="text-white/40 text-xs mb-2">
+                      Printed on the poster above. Scans open this nominee&apos;s page with voting
+                      pre-selected. Click the code to check the link.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        track(selectedNominee.id, 'qr_download');
+                        await downloadQrPng(qrUrl(selectedNominee), `TIA2026-QR-${selectedNominee.slug || selectedNominee.id}.png`, 1200);
+                      }}
+                      className="btn-gold !py-2 !px-3 !text-xs"
+                    >
+                      ⬇ Download QR (PNG)
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 gap-2">
                   {assets.map((asset) => (
                     <div key={asset.key} className="flex items-center gap-3 p-3 rounded-xl bg-ink-900/60 border border-white/8">

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { api, getAssetUrl, clearApiCache } from '../../api';
 import ImageUploader from '../../components/ImageUploader';
-import QrCode from '../../components/QrCode';
+import QrBlock from '../../components/QrBlock';
 import { getSiteUrl, downloadQrPng, qrUrl, voteUrl, nomineeUrl, whatsappShareUrl } from '../../lib/nomineeCampaign';
 
 const TABS = [
@@ -1244,14 +1244,14 @@ function MyCampaignPanel({ nominee, onClose }) {
         {/* QR */}
         <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-xl bg-ink-800/60 border border-white/8">
           <div className="flex flex-col items-center gap-2 shrink-0">
-            <QrCode value={qrUrl(record)} size={150} className="bg-white p-1" />
-            <span className="text-champagne-400/60 text-[10px] uppercase tracking-widest font-bold">Scan to Vote</span>
+            <QrBlock value={qrUrl(record)} size={150} label="Scan to Vote" showUrl={false} />
           </div>
           <div className="flex-1 text-center sm:text-left space-y-2">
             <h4 className="font-bold text-white text-sm">Unique QR Code</h4>
             <p className="text-white/40 text-xs">
               Encodes this nominee&apos;s direct voting URL (<span className="font-mono">?vote=true&amp;src=qr</span>), so scans
               are counted separately from link taps. Safe to print on posters, stories and print ads.
+              Click the code to open the link and verify it before printing.
             </p>
             <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
               <button

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import PageTransition from '../components/PageTransition';
-import QrCode from '../components/QrCode';
+import QrBlock from '../components/QrBlock';
 import { api, getAssetUrl } from '../api';
 import {
   nomineeUrl,
@@ -247,9 +247,8 @@ function NomineeKitCard({ nomination, onCopy, copied }) {
       <h3 className="font-display text-base font-bold text-champagne-400">🎁 Your Campaign Kit</h3>
 
       <div className="flex flex-col sm:flex-row gap-5 items-center">
-        <div className="flex flex-col items-center gap-2 shrink-0">
-          <QrCode value={qr} size={140} className="bg-white p-1" />
-          <span className="text-champagne-400/60 text-[10px] uppercase tracking-widest font-bold">Scan to Vote</span>
+        <div className="flex flex-col items-center gap-4 shrink-0">
+          <QrBlock value={qr} size={140} />
         </div>
         <div className="flex-1 w-full space-y-2">
           <KitRow label="Nominee ID" value={campaign.nominee_code} onCopy={() => onCopy(campaign.nominee_code, 'code')} copied={copied === 'code'} />
