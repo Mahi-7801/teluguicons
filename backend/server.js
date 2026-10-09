@@ -39,7 +39,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Nominee photos are drawn into a <canvas> on the client to build the campaign
+// poster. Canvas taints (and silently drops) cross-origin images unless the
+// response carries CORS headers, so uploads are served with permissive CORS.
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  cors: true,
+  crossOriginResourcePolicy: 'cross-origin',
+  maxAge: '7d',
+}));
 
 const authRoutes = require('./routes/authRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
@@ -58,6 +65,7 @@ const awardeeRoutes = require('./routes/awardeeRoutes');
 const galleryRoutes = require('./routes/galleryRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
 const sponsorLeadRoutes = require('./routes/sponsorLeadRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -76,6 +84,7 @@ app.use('/api/awardees', awardeeRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/sponsor-leads', sponsorLeadRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Telugu Icon Awards API is running', db: process.env.DB_PORT, pid: process.pid });

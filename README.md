@@ -76,7 +76,9 @@ Or double-click `start-backend.bat` and `start-frontend.bat`.
 | `/nominate` | Multi-step nomination form (with photo upload) |
 | `/vote` | Public voting portal |
 | `/nominees` | Nominees showcase gallery |
-| `/nominee/:id` | Shareable nominee profile with vote button |
+| `/nominee/:id` | Shareable nominee profile with vote button (slug is canonical) |
+| `/vote/:slug` | Direct voting URL — opens the nominee page with voting pre-selected |
+| `/nominee-kit` | Campaign kit: poster, story, QR and social captions |
 | `/sponsors` | Sponsor tier showcase |
 | `/about` | Story, values, timeline |
 | `/contact` | Contact form (saves to DB) |
@@ -110,8 +112,109 @@ Or double-click `start-backend.bat` and `start-frontend.bat`.
 
 ---
 
+## 🌟 Individual Nominee Pages & Direct Voting (add-on)
+
+Every approved nominee gets a permanent public page, a unique QR code, a share
+kit and a campaign dashboard. Voting rules are unchanged: **one verified mobile
+= one vote per category**, OTP enforced, anti-fraud and duplicate protection all
+still enforced server-side.
+
+### 1. Run the database migration (required once)
+
+Supabase → SQL Editor → New query. Run in this order:
+
+| Order | File | What it does |
+|---|---|---|
+| 1 | `backend/database/migration-nominee-pages.sql` | `TIC26-#####` sequence, achievements/social columns, `nominee_campaign_events`, `sponsor_slots` |
+| 2 | `backend/database/migration-nominee-pages-backfill.sql` | **Optional, one-time.** Cleans up existing slugs and assigns `TIC26-00001…` codes |
+
+> ⚠️ Step 2 **changes public URLs** (`ananya-nagalla-k3f9a2` → `ananya-nagalla`).
+> Only run it **before** any nominee link, poster, QR code or video has been
+> distributed. After that, printed material breaks. To keep existing URLs, comment
+> out STEP 2 in that file — steps 1 and 3 are always safe.
+
+The API degrades gracefully if the migration has not been run: nominee pages,
+voting and the admin directory all work, you just don't get `TIC26-` codes,
+achievements/social link fields, or analytics.
+
+### 2. Configure environment variables
+
+**Vercel (frontend)** — required for link previews and SEO:
+
+| Variable | Value |
+|---|---|
+| `VITE_SITE_URL` | `https://teluguiconawards.in` |
+| `API_BASE_URL` | `https://awards-production-13eb.up.railway.app/api` |
+
+**Railway (backend)** — optional, `FRONTEND_URL` should be the site origin so
+nominee photos can be drawn into the poster canvas.
+
+### 3. How link previews work
+
+`middleware.ts` (repo root) intercepts `/nominee/<slug>` and `/vote/<slug>` on
+Vercel and serves the built `index.html` with per-nominee `<title>`, meta
+description, canonical URL, Open Graph, Twitter/X card and JSON-LD injected
+server-side. This is required because **WhatsApp, Facebook, Telegram and X do
+not run JavaScript** — a client-only implementation would preview every nominee
+link as the generic site title.
+
+The Vercel project root must be the **repo root** (so that `middleware.ts`,
+`package.json` and `vercel.json` sit together) with output directory
+`frontend/dist`. The middleware also serves `/robots.txt` and a `/sitemap.xml`
+generated live from the approved nominee list.
+
+If the API is unreachable the middleware falls through to the normal SPA shell,
+so a database hiccup can never take the site down.
+
+### 4. New URLs
+
+| URL | Purpose |
+|---|---|
+| `/nominee/<slug>` | Official nominee page (canonical) |
+| `/nominee/<slug>?vote=true` | Opens the page with the voting form pre-selected |
+| `/nominee/<slug>?vote=true&src=qr` | Encoded in the QR code — scans are counted separately from taps |
+| `/vote/<slug>` | Human-friendly alias for the direct vote URL |
+| `/nominee-kit?nominee=<slug>` | Campaign kit: poster, story, QR, all captions |
+| `/sitemap.xml`, `/robots.txt` | Generated live by the middleware |
+
+The numeric-id form (`/nominee/42`) redirects to the slug, so a nominee always
+has exactly **one** canonical URL.
+
+### 5. New API endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/analytics/track` | Records page views / voting clicks / share clicks / QR scans (de-duplicated, no voter identity stored) |
+| GET | `/api/admin/nominees/:id/campaign` | Full MY CAMPAIGN payload + 14-day reach series (auth) |
+
+`GET /api/nominees` now also accepts a **category id** as well as a category
+slug, and returns achievements plus individual social URLs.
+
+### 6. Admin
+
+In **Admin → Nominees**, each row has a **🎯 MY CAMPAIGN** button giving the
+nominee name, nominee ID, category, official URL, voting URL, QR code, campaign
+assets and reach — with `COPY NOMINEE LINK`, `COPY VOTING LINK`, `DOWNLOAD QR`,
+`SHARE` and `DOWNLOAD CAMPAIGN MATERIAL`. The edit modal now exposes the slug
+(plus achievements and individual social URLs) so a broken link can be fixed.
+
+**Slug policy:** renaming a nominee never changes their URL automatically. The
+slug only changes when an admin explicitly edits that field, because it is
+printed on posters, QR codes and videos.
+
+### 7. Before the 10 October launch checklist
+
+- [ ] Run both migrations
+- [ ] Set `VITE_SITE_URL` + `API_BASE_URL` on Vercel and redeploy
+- [ ] Confirm a shared WhatsApp link previews with the nominee's **name, category and photo** (not the generic site title)
+- [ ] Download one poster per nominee — verify the QR scans into the **correct** nominee page
+- [ ] Flip `voting_open` on categories deliberately; there is no automatic date gate
+
+---
+
 ## 🗄️ Database Tables
-`users`, `categories`, `nominees`, `nominations`, `votes`, `sponsors`, `settings`, `contact_messages`
+`users`, `categories`, `nominees`, `nominations`, `votes`, `sponsors`, `settings`, `contact_messages`,
+`nominee_campaign_events`, `sponsor_slots`
 
 Seeded: 1 admin, 50 categories (10 curated + 40 people's choice), 2 featured nomnees, 1 sponsor, site settings.
 

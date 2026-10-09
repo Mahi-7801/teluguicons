@@ -1,22 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
 import OtpVote from '../components/OtpVote';
-import { api } from '../api';
+import { api, getAssetUrl } from '../api';
 
 export default function VotePage() {
+  const [searchParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
   const [nominees, setNominees] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedNominee, setSelectedNominee] = useState(null);
   const [votedNominee, setVotedNominee] = useState(null);
 
+  // Direct voting URL support (add-on req. 10): /vote/<slug> redirects here with
+  // ?nominee=<slug>&category=<slug>, so the nominee and its category are
+  // pre-selected instead of making the voter browse and search.
+  const preNominee = searchParams.get('nominee');
+  const preCategory = searchParams.get('category');
+
+  const requestedNominee = useMemo(
+    () => nominees.find((n) => String(n.slug) === preNominee || String(n.id) === preNominee) || null,
+    [nominees, preNominee]
+  );
+
   useEffect(() => {
     api.get('/categories').then((data) => {
       if (Array.isArray(data)) {
         const open = data.filter((c) => c.voting_open && c.type === 'self_nomination');
         setCategories(open);
-        if (open.length > 0) setSelectedCategory(open[0].id);
       }
     }).catch(() => {});
   }, []);
@@ -25,11 +37,27 @@ export default function VotePage() {
     if (selectedCategory) {
       setSelectedNominee(null);
       setVotedNominee(null);
-      api.get(`/nominees?category=${selectedCategory}`).then((data) => {
+      // The category is stored by slug, which is what the nominees endpoint
+      // filters on.
+      api.get(`/nominees?category=${encodeURIComponent(selectedCategory)}`).then((data) => {
         if (Array.isArray(data)) setNominees(data);
       }).catch(() => {});
     }
   }, [selectedCategory]);
+
+  // Pick the requested category once the list loads.
+  useEffect(() => {
+    if (!categories.length) return;
+    const wanted = categories.find((c) => String(c.slug) === preCategory || String(c.id) === preCategory);
+    setSelectedCategory(wanted ? wanted.slug : categories[0].slug);
+  }, [categories, preCategory]);
+
+  // Land on the requested nominee as soon as its category is loaded.
+  useEffect(() => {
+    if (requestedNominee && selectedCategory) setSelectedNominee(requestedNominee.id);
+  }, [requestedNominee, selectedCategory]);
+
+  const currentNominee = nominees.find((n) => n.id === selectedNominee) || null;
 
   return (
     <PageTransition>
@@ -71,9 +99,9 @@ export default function VotePage() {
                   {categories.map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => setSelectedCategory(c.id)}
+                      onClick={() => setSelectedCategory(c.slug)}
                       className={`text-left px-3 py-2 sm:px-4 sm:py-3 rounded-xl border text-xs sm:text-sm transition-all duration-300 ${
-                        selectedCategory === c.id
+                        selectedCategory === c.slug
                           ? 'border-champagne-500 bg-champagne-500/10 text-champagne-300'
                           : 'border-white/10 text-white/50 hover:border-white/30 hover:text-white'
                       }`}
@@ -86,7 +114,12 @@ export default function VotePage() {
 
               {categories.length > 0 && (
                 <div className="glass-card p-6 sm:p-8 mb-6">
-                  <h2 className="font-display text-2xl font-bold text-white mb-6">Shortlisted creators</h2>
+                  <h2 className="font-display text-2xl font-bold text-white mb-1">Shortlisted creators</h2>
+                  {requestedNominee && currentNominee?.id === requestedNominee.id && (
+                    <p className="text-champagne-400 text-xs mb-4">
+                      ✓ {requestedNominee.full_name} is pre-selected for you — just enter your mobile number to vote.
+                    </p>
+                  )}
                   {nominees.length > 0 ? (
                     <div className="space-y-3">
                       {nominees.map((n) => (
@@ -103,7 +136,7 @@ export default function VotePage() {
                           <div className="flex items-center space-x-4">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ink-700 to-burgundy-900 flex items-center justify-center overflow-hidden">
                               {n.photo_url ? (
-                                <img src={n.photo_url} alt={n.full_name} className="w-full h-full object-cover" />
+                                <img src={getAssetUrl(n.photo_url)} alt={n.full_name} className="w-full h-full object-cover" />
                               ) : (
                                 <span>🏆</span>
                               )}
@@ -123,12 +156,13 @@ export default function VotePage() {
                 </div>
               )}
 
-              {selectedNominee && nominees.find((n) => n.id === selectedNominee) && (
+              {currentNominee && (
                 <div className="glass-card p-6 sm:p-8">
-                  <h2 className="font-display text-xl font-bold text-white mb-4">
-                    Cast your vote for {nominees.find((n) => n.id === selectedNominee).full_name}
+                  <h2 className="font-display text-xl font-bold text-white mb-1">
+                    Cast your vote for {currentNominee.full_name}
                   </h2>
-                  <OtpVote nominee={nominees.find((n) => n.id === selectedNominee)} onVoted={() => setVotedNominee(nominees.find((n) => n.id === selectedNominee).full_name)} />
+                  <p className="text-champagne-400 text-xs mb-4">{currentNominee.category_name}</p>
+                  <OtpVote nominee={currentNominee} onVoted={() => setVotedNominee(currentNominee.full_name)} />
                 </div>
               )}
 

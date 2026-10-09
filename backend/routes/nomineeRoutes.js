@@ -1,17 +1,39 @@
 const router = require('express').Router();
 const { pool } = require('../config/database');
 const { cached } = require('../utils/cache');
+const { hasColumn } = require('../utils/nomineeIdentity');
+
+// Achievements + social URLs are optional add-on columns (see
+// migration-nominee-pages.sql). Probe once so the public API still works on a
+// database that has not been migrated yet.
+let profileColumnsPromise = null;
+async function profileColumns() {
+  if (!profileColumnsPromise) {
+    profileColumnsPromise = (async () => {
+      const columns = [];
+      for (const column of ['achievements', 'youtube_url', 'instagram_url', 'facebook_url', 'website_url', 'other_profile_url']) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await hasColumn('nominees', column)) columns.push(column);
+      }
+      return columns;
+    })();
+  }
+  return profileColumnsPromise;
+}
 
 router.get('/', async (req, res) => {
   try {
     const { category, status, featured } = req.query;
     const key = `nominees:${category || ''}|${status || ''}|${featured || ''}`;
+    const extras = await profileColumns();
     const rows = await cached(key, 30, async () => {
       let sql = `SELECT n.id, n.full_name, n.slug, n.bio, n.photo_url, n.social_handle, n.followers_count,
-                        n.featured, n.status, n.nominee_code, n.vote_count, c.name AS category_name, c.slug AS category_slug
+                        n.featured, n.status, n.nominee_code, n.vote_count,
+                        c.name AS category_name, c.slug AS category_slug${extras.map((c) => `, n.${c}`).join('')}
                  FROM nominees n JOIN categories c ON n.category_id = c.id WHERE 1=1`;
       const params = [];
-      if (category) { sql += ' AND c.slug = ?'; params.push(category); }
+      // Accept either a category slug or a numeric category id.
+      if (category) { sql += ' AND (c.slug = ? OR c.id::TEXT = ?)'; params.push(category, String(category)); }
       if (status) { sql += ' AND n.status = ?'; params.push(status); }
       if (featured) { sql += ' AND n.featured = 1'; }
       sql += " AND n.status = 'approved' ORDER BY n.vote_count DESC, n.featured DESC, n.id ASC";

@@ -93,7 +93,9 @@ function AdminRoutes() {
   );
 }
 
-// Direct vote URL: /vote/:slug → /nominee/:slug?vote=true
+// Direct vote URL (add-on req. 10): /vote/ananya-nagalla opens the nominee page
+// with the voting form pre-selected, and /vote/<id>/vote is a human-friendly
+// alias for the same thing.
 function VoteRedirect() {
   const { slug } = useParams();
   return <Navigate to={`/nominee/${slug}?vote=true`} replace />;

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { api, getAssetUrl, clearApiCache } from '../../api';
 import ImageUploader from '../../components/ImageUploader';
+import QrCode from '../../components/QrCode';
+import { getSiteUrl, downloadQrPng, qrUrl, voteUrl, nomineeUrl, whatsappShareUrl } from '../../lib/nomineeCampaign';
 
 const TABS = [
   { key: '', label: 'Dashboard', icon: '📊' },
@@ -627,6 +629,7 @@ function NomineesTab() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPhotoNominee, setEditingPhotoNominee] = useState(null);
   const [editingNominee, setEditingNominee] = useState(null);
+  const [campaignNominee, setCampaignNominee] = useState(null);
   const [newNominee, setNewNominee] = useState({
     full_name: '',
     category_id: '',
@@ -680,10 +683,16 @@ function NomineesTab() {
       category_id: editingNominee.category_id,
       social_handle: editingNominee.social_handle,
       bio: editingNominee.bio,
+      achievements: editingNominee.achievements,
+      youtube_url: editingNominee.youtube_url,
+      instagram_url: editingNominee.instagram_url,
+      facebook_url: editingNominee.facebook_url,
+      website_url: editingNominee.website_url,
       followers_count: editingNominee.followers_count ? Number(editingNominee.followers_count) : null,
       featured: editingNominee.featured,
       status: editingNominee.status,
       photo_url: editingNominee.photo_url,
+      slug: editingNominee.slug,
     });
     setMessage({ type: 'success', text: res.message || 'Nominee updated!' });
     setEditingNominee(null);
@@ -718,6 +727,7 @@ function NomineesTab() {
     const matchesSearch = !search ||
       (n.full_name || '').toLowerCase().includes(s) ||
       (n.nominee_code || '').toLowerCase().includes(s) ||
+      (n.slug || '').toLowerCase().includes(s) ||
       (n.social_handle || '').toLowerCase().includes(s) ||
       (n.category_name || '').toLowerCase().includes(s);
     const matchesCat = !categoryFilter || String(n.category_id) === String(categoryFilter);
@@ -742,7 +752,7 @@ function NomineesTab() {
         <div className="flex-1 max-w-sm">
           <input
             type="text"
-            placeholder="Search nominee by name, handle, or code..."
+            placeholder="Search nominee by name, code, or URL..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input-field !py-2 !text-xs w-full"
@@ -922,11 +932,72 @@ function NomineesTab() {
                 />
               </div>
               <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Public URL (slug)</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-white/30 text-xs font-mono shrink-0">{getSiteUrl().replace(/^https?:\/\//, '')}/nominee/</span>
+                  <input
+                    type="text"
+                    value={editingNominee.slug || ''}
+                    onChange={(e) => setEditingNominee({ ...editingNominee, slug: e.target.value.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase() })}
+                    className="input-field font-mono !text-xs"
+                  />
+                </div>
+                <p className="text-white/30 text-[10px] mt-1">
+                  Leave unchanged unless the link is broken. This URL is printed on posters, QR codes and videos —
+                  changing it invalidates anything already shared.
+                </p>
+              </div>
+              <div className="md:col-span-2">
                 <label className="block text-white/70 mb-1">Short Bio</label>
                 <textarea
                   rows={3}
                   value={editingNominee.bio || ''}
                   onChange={(e) => setEditingNominee({ ...editingNominee, bio: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-white/70 mb-1">Achievements</label>
+                <textarea
+                  rows={3}
+                  value={editingNominee.achievements || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, achievements: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Instagram URL</label>
+                <input
+                  type="url"
+                  value={editingNominee.instagram_url || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, instagram_url: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">YouTube URL</label>
+                <input
+                  type="url"
+                  value={editingNominee.youtube_url || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, youtube_url: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Facebook URL</label>
+                <input
+                  type="url"
+                  value={editingNominee.facebook_url || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, facebook_url: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-white/70 mb-1">Website URL</label>
+                <input
+                  type="url"
+                  value={editingNominee.website_url || ''}
+                  onChange={(e) => setEditingNominee({ ...editingNominee, website_url: e.target.value })}
                   className="input-field"
                 />
               </div>
@@ -980,22 +1051,21 @@ function NomineesTab() {
                 <th className="px-4 py-4 text-left">URL / QR</th>
                 <th className="px-4 py-4 text-left">Votes</th>
                 <th className="px-4 py-4 text-left">Status</th>
+                <th className="px-4 py-4 text-left">Voting</th>
+                <th className="px-4 py-4 text-left">Campaign</th>
                 <th className="px-4 py-4 text-left">Featured</th>
                 <th className="px-4 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading && nominees.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">Loading nominees...</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-white/40">Loading nominees...</td></tr>
               ) : filteredNominees.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-white/40">No nominees found matching search or filter.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-white/40">No nominees found matching search or filter.</td></tr>
               ) : (
                 filteredNominees.map((n) => {
                   const nomineeSlug = n.slug || String(n.id);
-                  const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://teluguiconawards.in';
-                  const nomineeUrl = `${origin}/nominee/${nomineeSlug}`;
-                  const voteUrl = `${origin}/vote/${nomineeSlug}`;
-                  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(voteUrl)}&size=60x60&bgcolor=0a0a0a&color=D4AF37&margin=4&format=png`;
+                  const nomineeRecord = { ...n, slug: nomineeSlug };
                   return (
                   <tr key={n.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                     <td className="px-4 py-4">
@@ -1032,13 +1102,17 @@ function NomineesTab() {
                     <td className="px-4 py-4 text-white/40 text-xs font-mono">{n.nominee_code || '—'}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
-                        <a href={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(voteUrl)}&size=400x400&bgcolor=0a0a0a&color=D4AF37&margin=10`} target="_blank" rel="noreferrer" title="Download QR Code">
-                          <img src={qrSrc} alt="QR" className="w-[30px] h-[30px] rounded opacity-80 hover:opacity-100" loading="lazy" />
-                        </a>
+                        <button
+                          onClick={() => downloadQrPng(qrUrl(nomineeRecord), `TIA2026-QR-${nomineeSlug}.png`, 1200)}
+                          title="Download QR Code (PNG)"
+                          className="shrink-0"
+                        >
+                          <QrCode value={qrUrl(nomineeRecord)} size={30} className="bg-white" />
+                        </button>
                         <div className="min-w-0">
                           <div className="text-white/40 text-[10px] font-mono truncate max-w-[120px]">/nominee/{nomineeSlug}</div>
                           <button
-                            onClick={() => { navigator.clipboard?.writeText(voteUrl); }}
+                            onClick={() => { navigator.clipboard?.writeText(voteUrl(nomineeRecord)); }}
                             className="text-[10px] text-champagne-400/70 hover:text-champagne-300 underline"
                           >
                             Copy vote link
@@ -1055,6 +1129,21 @@ function NomineesTab() {
                       }`}>
                         {n.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        Number(n.voting_open) === 1 ? 'bg-emerald-500/10 text-emerald-300' : 'bg-white/5 text-white/30'
+                      }`}>
+                        {Number(n.voting_open) === 1 ? 'Open' : 'Closed'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <button
+                        onClick={() => setCampaignNominee(n)}
+                        className="px-2.5 py-1 rounded-lg bg-champagne-500/10 text-champagne-400 text-[10px] font-bold border border-champagne-500/30 hover:bg-champagne-500/20"
+                      >
+                        🎯 MY CAMPAIGN
+                      </button>
                     </td>
                     <td className="px-4 py-4">
                       <button onClick={() => toggleFeatured(n)} className={`text-xs font-medium ${n.featured ? 'text-champagne-400' : 'text-white/30 hover:text-white'}`}>
@@ -1076,6 +1165,206 @@ function NomineesTab() {
           </table>
         </div>
       </div>
+
+      {campaignNominee && (
+        <MyCampaignPanel nominee={campaignNominee} onClose={() => setCampaignNominee(null)} />
+      )}
+    </div>
+  );
+}
+
+// Add-on req. 8: the single screen a nominee is handed when their nomination is
+// approved - official URL, voting URL, QR, campaign assets and reach.
+function MyCampaignPanel({ nominee, onClose }) {
+  const [data, setData] = useState(null);
+  const [copied, setCopied] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/admin/nominees/${nominee.id}/campaign`, { force: true })
+      .then((res) => {
+        if (!cancelled && res && res.nominee) setData(res);
+        else if (!cancelled) setError('Campaign analytics are unavailable.');
+      })
+      .catch((err) => { if (!cancelled) setError(err.message || 'Failed to load campaign data'); });
+    return () => { cancelled = true; };
+  }, [nominee.id]);
+
+  const record = { ...(data && data.nominee ? data.nominee : nominee), slug: (data && data.nominee && data.nominee.slug) || nominee.slug };
+  const officialUrl = nomineeUrl(record);
+  const directVoteUrl = voteUrl(record);
+  const code = record.nominee_code || 'TIC26';
+  const analytics = (data && data.analytics) || {};
+  const timeseries = (data && data.timeseries) || [];
+  const maxViews = Math.max(1, ...timeseries.map((d) => Number(d.views) || 0));
+
+  const copy = (text, key) => {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const stats = [
+    { label: 'Page Views', value: analytics.page_views ?? nominee.page_views ?? 0, icon: '👁' },
+    { label: 'Voting Clicks', value: analytics.vote_clicks ?? nominee.vote_clicks ?? 0, icon: '🗳️' },
+    { label: 'Share Clicks', value: analytics.share_clicks ?? nominee.share_clicks ?? 0, icon: '📣' },
+    { label: 'QR Scans', value: analytics.qr_scans ?? nominee.qr_scans ?? 0, icon: '📲' },
+    { label: 'Votes Cast', value: analytics.conversions ?? record.vote_count ?? 0, icon: '✅' },
+    { label: 'Poster Downloads', value: analytics.poster_downloads ?? 0, icon: '⬇' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+      <div className="glass-card max-w-3xl w-full p-6 space-y-5 border-champagne-500/40 my-8">
+        <div className="flex items-start justify-between pb-3 border-b border-white/10 gap-4">
+          <div>
+            <h3 className="font-display text-lg font-bold text-white">🎯 MY CAMPAIGN</h3>
+            <p className="text-white/50 text-xs mt-1">
+              {record.full_name} · {record.category_name} · <span className="font-mono text-champagne-400">{code}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="text-white/60 hover:text-white text-sm shrink-0">✕ Close</button>
+        </div>
+
+        {error && (
+          <div className="px-4 py-3 rounded-xl bg-champagne-900/30 border border-champagne-500/30 text-champagne-200 text-xs">
+            {error} <span className="text-white/40">(run migration-nominee-pages.sql)</span>
+          </div>
+        )}
+
+        {/* Links */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <CampaignLink label="Official Nominee URL" value={officialUrl} copied={copied === 'official'} onCopy={() => copy(officialUrl, 'official')} />
+          <CampaignLink label="Direct Voting URL" value={directVoteUrl} copied={copied === 'vote'} onCopy={() => copy(directVoteUrl, 'vote')} />
+          <CampaignLink label="Nominee ID" value={code} copied={copied === 'code'} onCopy={() => copy(code, 'code')} />
+          <CampaignLink label="Direct Vote Path" value={`/vote/${record.slug || record.id}`} copied={copied === 'short'} onCopy={() => copy(`${getSiteUrl()}/vote/${record.slug || record.id}`, 'short')} />
+        </div>
+
+        {/* QR */}
+        <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-xl bg-ink-800/60 border border-white/8">
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <QrCode value={qrUrl(record)} size={150} className="bg-white p-1" />
+            <span className="text-champagne-400/60 text-[10px] uppercase tracking-widest font-bold">Scan to Vote</span>
+          </div>
+          <div className="flex-1 text-center sm:text-left space-y-2">
+            <h4 className="font-bold text-white text-sm">Unique QR Code</h4>
+            <p className="text-white/40 text-xs">
+              Encodes this nominee&apos;s direct voting URL (<span className="font-mono">?vote=true&amp;src=qr</span>), so scans
+              are counted separately from link taps. Safe to print on posters, stories and print ads.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+              <button
+                onClick={() => downloadQrPng(qrUrl(record), `TIA2026-QR-${record.slug || record.id}.png`, 1200)}
+                className="btn-gold !py-2 !px-3 !text-xs"
+              >
+                ⬇ DOWNLOAD QR
+              </button>
+              <button
+                onClick={() => copy(qrUrl(record), 'qr')}
+                className="btn-outline !py-2 !px-3 !text-xs"
+              >
+                {copied === 'qr' ? '✓ Copied!' : '🔗 Copy QR link'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => copy(officialUrl, 'official')} className="btn-outline !py-2 !px-3 !text-xs">
+            {copied === 'official' ? '✓ Copied!' : '📋 COPY NOMINEE LINK'}
+          </button>
+          <button onClick={() => copy(directVoteUrl, 'vote')} className="btn-outline !py-2 !px-3 !text-xs">
+            {copied === 'vote' ? '✓ Copied!' : '🗳️ COPY VOTING LINK'}
+          </button>
+          <button
+            onClick={() => downloadQrPng(qrUrl(record), `TIA2026-QR-${record.slug || record.id}.png`, 1200)}
+            className="btn-outline !py-2 !px-3 !text-xs"
+          >
+            ⬇ DOWNLOAD QR
+          </button>
+          <button
+            onClick={() => window.open(whatsappShareUrl(record), '_blank', 'noopener,noreferrer')}
+            className="btn-outline !py-2 !px-3 !text-xs"
+          >
+            📤 SHARE
+          </button>
+          <a
+            href={`/nominee-kit?nominee=${record.slug || record.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-gold !py-2 !px-3 !text-xs"
+          >
+            ⬇ DOWNLOAD CAMPAIGN MATERIAL
+          </a>
+          <a
+            href={officialUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-outline !py-2 !px-3 !text-xs"
+          >
+            ↗ Open Nominee Page
+          </a>
+        </div>
+
+        {/* Analytics */}
+        <div>
+          <h4 className="font-bold text-white text-sm mb-2">Campaign Reach</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {stats.map((stat) => (
+              <div key={stat.label} className="p-3 rounded-xl bg-ink-800/60 border border-white/8">
+                <div className="text-lg">{stat.icon}</div>
+                <div className="text-xl font-display font-bold text-white">{Number(stat.value || 0).toLocaleString()}</div>
+                <div className="text-white/40 text-[10px] uppercase tracking-wider">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {timeseries.length > 0 && (
+            <div className="mt-3 p-4 rounded-xl bg-ink-800/60 border border-white/8">
+              <p className="text-white/40 text-[10px] uppercase tracking-wider mb-3">Last 14 days — page views vs voting clicks</p>
+              <div className="flex items-end gap-1 h-24">
+                {timeseries.map((day) => {
+                  const views = Number(day.views) || 0;
+                  const clicks = Number(day.vote_clicks) || 0;
+                  return (
+                    <div key={day.day} className="flex-1 flex flex-col items-center justify-end gap-0.5" title={`${day.day}: ${views} views, ${clicks} voting clicks`}>
+                      <div className="w-full rounded-t bg-champagne-500/70" style={{ height: `${(views / maxViews) * 70}%`, minHeight: views > 0 ? 3 : 0 }} />
+                      <div className="w-full rounded-t bg-emerald-500/70" style={{ height: `${(clicks / maxViews) * 70}%`, minHeight: clicks > 0 ? 3 : 0 }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-3 mt-2 text-[10px] text-white/40">
+                <span><span className="inline-block w-2 h-2 bg-champagne-500/70 rounded-sm mr-1" />Page views</span>
+                <span><span className="inline-block w-2 h-2 bg-emerald-500/70 rounded-sm mr-1" />Voting clicks</span>
+              </div>
+            </div>
+          )}
+          <p className="text-white/25 text-[10px] mt-2">
+            Counts are unique visitors (repeat actions by the same device within a short window are not counted twice).
+            Vote counts come straight from the votes table. No voter identity is stored here.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CampaignLink({ label, value, copied, onCopy }) {
+  return (
+    <div className="flex items-center gap-2 p-3 rounded-xl bg-ink-800/60 border border-white/8">
+      <div className="flex-1 min-w-0">
+        <p className="text-white/40 text-[9px] uppercase tracking-wider font-bold mb-0.5">{label}</p>
+        <p className="text-white/70 text-[11px] font-mono truncate">{value}</p>
+      </div>
+      <button
+        onClick={onCopy}
+        className="shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-champagne-500/10 text-champagne-400 border border-champagne-500/30 hover:bg-champagne-500/20"
+      >
+        {copied ? '✓' : 'Copy'}
+      </button>
     </div>
   );
 }

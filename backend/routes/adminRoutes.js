@@ -3,6 +3,7 @@ const path = require('path');
 const multer = require('multer');
 const { pool } = require('../config/database');
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
+const { slugify, uniqueSlug, withNomineeCode, hasColumn } = require('../utils/nomineeIdentity');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads')),
@@ -76,6 +77,87 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+const NOMINEE_PROFILE_COLUMNS = [
+  'achievements',
+  'youtube_url',
+  'instagram_url',
+  'facebook_url',
+  'website_url',
+  'other_profile_url',
+];
+
+const firstUrl = (...candidates) => {
+  for (const value of candidates) {
+    const trimmed = String(value || '').trim();
+    if (trimmed) return trimmed;
+  }
+  return null;
+};
+
+// Shortlisting a nomination creates (or refreshes) the official nominee page.
+// Idempotent: re-shortlisting updates the same nominee and never mints a new
+// URL, so links already printed on posters and QR codes keep working.
+async function promoteNomination(nomination, categoryId) {
+  const fullName = nomination.creator_name || nomination.full_name;
+  const profile = {
+    bio: nomination.journey || null,
+    achievements: nomination.achievements || null,
+    photo_url: nomination.photo_url || null,
+    social_handle: firstUrl(nomination.instagram_url, nomination.youtube_url, nomination.facebook_url, nomination.other_profile_url, nomination.website_url),
+    youtube_url: nomination.youtube_url || null,
+    instagram_url: nomination.instagram_url || null,
+    facebook_url: nomination.facebook_url || null,
+    website_url: nomination.website_url || null,
+    other_profile_url: nomination.other_profile_url || null,
+  };
+
+  const hasNominationId = await hasColumn('nominees', 'nomination_id');
+  const extraColumns = [];
+  for (const column of NOMINEE_PROFILE_COLUMNS) {
+    if (await hasColumn('nominees', column)) extraColumns.push(column);
+  }
+
+  const buildAssignments = () => extraColumns.map((column) => `${column} = ?`).join(', ');
+  const buildValues = () => extraColumns.map((column) => profile[column]);
+
+  let nomineeId = null;
+  let nomineeCode = null;
+
+  if (hasNominationId) {
+    const [existing] = await pool.query('SELECT id, nominee_code FROM nominees WHERE nomination_id = ? LIMIT 1', [nomination.id]);
+    if (existing.length > 0) {
+      nomineeId = existing[0].id;
+      nomineeCode = existing[0].nominee_code;
+      await pool.query(
+        `UPDATE nominees SET
+           category_id = ?, full_name = ?, bio = ?, photo_url = ?, social_handle = ?, status = 'approved'
+           ${extraColumns.length ? ', ' + buildAssignments() : ''}
+         WHERE id = ?`,
+        [categoryId, fullName, profile.bio, profile.photo_url, profile.social_handle, ...buildValues(), nomineeId]
+      );
+    }
+  }
+
+  if (!nomineeId) {
+    const slug = await uniqueSlug(fullName);
+    const created = await withNomineeCode(async (code) => {
+      const [result] = await pool.query(
+        `INSERT INTO nominees (category_id, full_name, slug, bio, photo_url, social_handle, status, nominee_code${hasNominationId ? ', nomination_id' : ''}${extraColumns.length ? ', ' + extraColumns.join(', ') : ''})
+         VALUES (?, ?, ?, ?, ?, ?, 'approved', ?${hasNominationId ? ', ?' : ''}${extraColumns.length ? ', ' + extraColumns.map(() => '?').join(', ') : ''})`,
+        [categoryId, fullName, slug, profile.bio, profile.photo_url, profile.social_handle, code, ...(hasNominationId ? [nomination.id] : []), ...buildValues()]
+      );
+      return { id: result.insertId, code };
+    });
+    nomineeId = created.id;
+    nomineeCode = created.code;
+  }
+
+  if (nomineeCode) {
+    await pool.query('UPDATE nominations SET nomination_code = COALESCE(nomination_code, ?) WHERE id = ?', [nomineeCode, nomination.id]);
+  }
+  return { id: nomineeId, nominee_code: nomineeCode };
+}
+
 router.get('/nominations', async (req, res) => {
   try {
     const { status } = req.query;
@@ -112,24 +194,7 @@ router.put('/nominations/:id', async (req, res) => {
 
     // Shortlisting a verified nomination promotes it to an official nominee.
     if (status === 'shortlisted') {
-      const slugBase = (nomination.creator_name || nomination.full_name || 'creator')
-        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Math.floor(Math.random() * 1000);
-      const nomineeCode = 'TIA2026-' + String(nomination.id).padStart(6, '0');
-      await pool.query(
-        `INSERT INTO nominees (category_id, full_name, slug, bio, photo_url, social_handle, status, nominee_code)
-         VALUES (?, ?, ?, ?, ?, ?, 'approved', ?)
-         ON CONFLICT (slug) DO UPDATE SET full_name = EXCLUDED.full_name`,
-        [
-          nomination.category_id || category_id,
-          nomination.creator_name || nomination.full_name,
-          slugBase,
-          nomination.journey || nomination.achievements || null,
-          nomination.photo_url,
-          nomination.instagram_url || nomination.youtube_url || nomination.other_profile_url || null,
-          nomineeCode,
-        ]
-      );
-      await pool.query("UPDATE nominations SET nomination_code = COALESCE(nomination_code, ?) WHERE id = ?", [nomineeCode, nomination.id]);
+      await promoteNomination(nomination, category_id || nomination.category_id);
     }
 
     res.json({ message: 'Nomination updated' });
@@ -150,32 +215,147 @@ router.delete('/nominations/:id', async (req, res) => {
 
 router.get('/nominees', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT n.id, n.full_name, n.slug, n.bio, n.photo_url, n.social_handle, n.followers_count,
-              n.featured, n.status, n.nominee_code, n.vote_count, c.name AS category_name
-       FROM nominees n JOIN categories c ON n.category_id = c.id
+    const extraColumns = [];
+    for (const column of NOMINEE_PROFILE_COLUMNS) {
+      if (await hasColumn('nominees', column)) extraColumns.push(column);
+    }
+    const selectExtras = extraColumns.map((column) => `, n.${column}`).join('');
+
+    const analyticsJoin = `
+       LEFT JOIN (
+         SELECT nominee_id,
+                COUNT(*) FILTER (WHERE event_type = 'page_view')    AS views,
+                COUNT(*) FILTER (WHERE event_type = 'vote_click')  AS vote_clicks,
+                COUNT(*) FILTER (WHERE event_type = 'share_click') AS share_clicks,
+                COUNT(*) FILTER (WHERE event_type = 'qr_scan')     AS qr_scans
+           FROM nominee_campaign_events
+          GROUP BY nominee_id
+       ) ev ON ev.nominee_id = n.id`;
+
+    const baseSelect = `SELECT n.id, n.category_id, n.full_name, n.slug, n.bio, n.photo_url, n.social_handle, n.followers_count,
+              n.featured, n.status, n.nominee_code, n.vote_count,
+              c.name AS category_name, c.slug AS category_slug, c.voting_open${selectExtras}`;
+    const analyticsSelect = `,
+              COALESCE(ev.views, 0)::int AS page_views,
+              COALESCE(ev.vote_clicks, 0)::int AS vote_clicks,
+              COALESCE(ev.share_clicks, 0)::int AS share_clicks,
+              COALESCE(ev.qr_scans, 0)::int AS qr_scans`;
+
+    let rows;
+    try {
+      [rows] = await pool.query(
+        `${baseSelect}${analyticsSelect}
+       FROM nominees n
+       JOIN categories c ON c.id = n.category_id
+       ${analyticsJoin}
        ORDER BY n.id DESC`
-    );
+      );
+    } catch (queryError) {
+      // Analytics table not created yet - still serve the directory.
+      if (queryError.code !== '42P01') throw queryError;
+      [rows] = await pool.query(
+        `${baseSelect}
+       FROM nominees n
+       JOIN categories c ON c.id = n.category_id
+       ORDER BY n.id DESC`
+      );
+    }
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
+// Full campaign payload for the admin "MY CAMPAIGN" panel (add-on req. 8).
+router.get('/nominees/:id/campaign', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [rows] = await pool.query(
+      `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.voting_open
+         FROM nominees n JOIN categories c ON c.id = n.category_id
+        WHERE n.id = ? LIMIT 1`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Nominee not found' });
+    }
+
+    const [totals] = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE event_type = 'page_view')    AS page_views,
+         COUNT(*) FILTER (WHERE event_type = 'vote_click')  AS vote_clicks,
+         COUNT(*) FILTER (WHERE event_type = 'share_click') AS share_clicks,
+         COUNT(*) FILTER (WHERE event_type = 'qr_scan')     AS qr_scans,
+         COUNT(*) FILTER (WHERE event_type = 'poster_download') AS poster_downloads,
+         COUNT(*) FILTER (WHERE event_type = 'qr_download')     AS qr_downloads
+       FROM nominee_campaign_events
+       WHERE nominee_id = ?`,
+      [id]
+    );
+
+    const [timeseries] = await pool.query(
+      `SELECT to_char(d.day, 'YYYY-MM-DD') AS day,
+              COUNT(e.id) FILTER (WHERE e.event_type = 'page_view')   AS views,
+              COUNT(e.id) FILTER (WHERE e.event_type = 'vote_click') AS vote_clicks
+         FROM generate_series(NOW() - INTERVAL '13 days', NOW(), INTERVAL '1 day') AS d(day)
+         LEFT JOIN nominee_campaign_events e
+           ON e.nominee_id = ? AND e.created_at >= d.day AND e.created_at < d.day + INTERVAL '1 day'
+        GROUP BY d.day
+        ORDER BY d.day ASC`,
+      [id]
+    );
+
+    res.json({
+      nominee: rows[0],
+      analytics: {
+        ...(totals[0] || {}),
+        conversions: rows[0].vote_count || 0,
+      },
+      timeseries,
+    });
+  } catch (error) {
+    if (error && error.code === '42P01') {
+      return res.status(503).json({ message: 'Run migration-nominee-pages.sql to enable campaign analytics' });
+    }
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.post('/nominees', async (req, res) => {
   try {
-    const { full_name, category_id, bio, photo_url, social_handle, followers_count, featured } = req.body;
+    const { full_name, category_id, bio, achievements, photo_url, social_handle, followers_count, featured, slug: requestedSlug } = req.body;
     if (!full_name || !category_id) {
       return res.status(400).json({ message: 'Full name and category are required' });
     }
-    const slug = full_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
-    const nomineeCode = 'TIA-' + Math.floor(1000 + Math.random() * 9000);
-    const [result] = await pool.query(
-      `INSERT INTO nominees (category_id, full_name, slug, bio, photo_url, social_handle, followers_count, featured, status, nominee_code, vote_count)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, 0)`,
-      [category_id, full_name, slug, bio || null, photo_url || null, social_handle || null, followers_count || null, featured ? 1 : 0, nomineeCode]
-    );
-    res.status(201).json({ message: 'Nominee created successfully', id: result.insertId });
+
+    // The public URL is a permanent, shareable identity, so an explicit slug is
+    // honoured when given and otherwise derived from the name.
+    const slug = await uniqueSlug(requestedSlug || full_name);
+
+    const profile = {
+      achievements: achievements || null,
+      youtube_url: req.body.youtube_url || null,
+      instagram_url: req.body.instagram_url || null,
+      facebook_url: req.body.facebook_url || null,
+      website_url: req.body.website_url || null,
+      other_profile_url: req.body.other_profile_url || null,
+    };
+    const extraColumns = [];
+    for (const column of NOMINEE_PROFILE_COLUMNS) {
+      if (await hasColumn('nominees', column)) extraColumns.push(column);
+    }
+
+    const created = await withNomineeCode(async (nomineeCode) => {
+      const [result] = await pool.query(
+        `INSERT INTO nominees (category_id, full_name, slug, bio, photo_url, social_handle, followers_count, featured, status, nominee_code, vote_count${extraColumns.length ? ', ' + extraColumns.join(', ') : ''})
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, 0${extraColumns.length ? ', ' + extraColumns.map(() => '?').join(', ') : ''})`,
+        [category_id, full_name, slug, bio || null, photo_url || null, social_handle || null, followers_count || null,
+          featured ? 1 : 0, nomineeCode, ...extraColumns.map((column) => profile[column])]
+      );
+      return { id: result.insertId, slug, nominee_code: nomineeCode };
+    });
+
+    res.status(201).json({ message: 'Nominee created successfully', ...created });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -183,7 +363,38 @@ router.post('/nominees', async (req, res) => {
 
 router.put('/nominees/:id', async (req, res) => {
   try {
-    const { full_name, bio, photo_url, social_handle, followers_count, featured, status, category_id } = req.body;
+    const {
+      full_name, bio, photo_url, social_handle, followers_count, featured, status, category_id, slug: requestedSlug,
+    } = req.body;
+    const id = parseInt(req.params.id, 10);
+
+    const profile = {
+      achievements: req.body.achievements,
+      youtube_url: req.body.youtube_url,
+      instagram_url: req.body.instagram_url,
+      facebook_url: req.body.facebook_url,
+      website_url: req.body.website_url,
+      other_profile_url: req.body.other_profile_url,
+    };
+    const extraColumns = [];
+    for (const column of NOMINEE_PROFILE_COLUMNS) {
+      if (await hasColumn('nominees', column)) extraColumns.push(column);
+    }
+
+    // Slug is deliberately NOT auto-regenerated on rename: URLs that are already
+    // printed on posters, QR codes and videos must keep resolving. It only
+    // changes when an admin explicitly asks for a new one.
+    let slug = null;
+    const trimmedSlug = String(requestedSlug || '').trim();
+    if (trimmedSlug) {
+      const normalized = slugify(trimmedSlug);
+      if (normalized) {
+        const [current] = await pool.query('SELECT slug FROM nominees WHERE id = ? LIMIT 1', [id]);
+        if (current.length === 0) return res.status(404).json({ message: 'Nominee not found' });
+        if (current[0].slug !== normalized) slug = await uniqueSlug(normalized, id);
+      }
+    }
+
     await pool.query(
       `UPDATE nominees SET
          full_name = COALESCE(?, full_name),
@@ -193,12 +404,15 @@ router.put('/nominees/:id', async (req, res) => {
          followers_count = COALESCE(?, followers_count),
          featured = COALESCE(?, featured),
          status = COALESCE(?, status),
-         category_id = COALESCE(?, category_id)
+         category_id = COALESCE(?, category_id),
+         slug = COALESCE(?, slug)
+         ${extraColumns.map((column) => `, ${column} = COALESCE(?, ${column})`).join('')}
        WHERE id = ?`,
       [full_name, bio, photo_url, social_handle, followers_count,
-       featured === undefined ? null : featured ? 1 : 0, status, category_id, req.params.id]
+        featured === undefined ? null : featured ? 1 : 0, status, category_id, slug,
+        ...extraColumns.map((column) => profile[column]), id]
     );
-    res.json({ message: 'Nominee updated' });
+    res.json({ message: 'Nominee updated', slug: slug || undefined });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

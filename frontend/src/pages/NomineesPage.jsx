@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
-import { api } from '../api';
+import { api, getAssetUrl } from '../api';
 
 export default function NomineesPage() {
   const [nominees, setNominees] = useState([]);
@@ -54,11 +54,11 @@ export default function NomineesPage() {
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.05 }}
                 >
-                  <Link to={`/nominee/${n.id}`} className="group block">
+                  <Link to={`/nominee/${n.slug || n.id}`} className="group block">
                     <div className="glass-card overflow-hidden group-hover:border-champagne-500/40 transition-all duration-300">
                       <div className="aspect-[16/10] bg-gradient-to-br from-ink-700 to-burgundy-900 relative overflow-hidden">
                         {n.photo_url ? (
-                          <img src={n.photo_url} alt={n.full_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={getAssetUrl(n.photo_url)} alt={n.full_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-7xl">🏆</div>
                         )}
