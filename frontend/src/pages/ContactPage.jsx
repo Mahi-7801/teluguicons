@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: 'I submitted a nomination — when will I hear back?',
-    a: 'The organizing team reviews every nomination. Approved creators receive their official nominee profile and campaign kit within a few days of verification. You can track status using your Nomination ID.',
+    a: 'The organizing team reviews every nomination. The moment yours is approved, your official nominee page, QR code and campaign kit unlock automatically — check them any time with the mobile number you nominated with.',
   },
   {
     q: 'How can the media get in touch?',

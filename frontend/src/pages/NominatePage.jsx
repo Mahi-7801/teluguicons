@@ -154,13 +154,20 @@ export default function NominatePage() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3.5 justify-center">
-              <Link to="/nominee-kit" className="btn-gold">
+              <Link to="/nominee-status" className="btn-gold">
+                Track My Nomination &amp; Get My Kit
+              </Link>
+              <Link to="/nominee-kit" className="btn-outline">
                 Open Campaign Kit
               </Link>
               <Link to="/" className="btn-outline">
                 Back to Home
               </Link>
             </div>
+            <p className="text-[#a99888] text-[11px] mt-4 max-w-sm mx-auto leading-relaxed">
+              Check back any time with your mobile number — the moment your nomination is approved,
+              your official page, QR code and campaign kit unlock automatically.
+            </p>
           </div>
         </div>
       </PageTransition>

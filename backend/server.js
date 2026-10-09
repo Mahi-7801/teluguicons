@@ -66,6 +66,7 @@ const galleryRoutes = require('./routes/galleryRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
 const sponsorLeadRoutes = require('./routes/sponsorLeadRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const nominationStatusRoutes = require('./routes/nominationStatusRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -85,6 +86,7 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/sponsor-leads', sponsorLeadRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/nomination-status', nominationStatusRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Telugu Icon Awards API is running', db: process.env.DB_PORT, pid: process.pid });

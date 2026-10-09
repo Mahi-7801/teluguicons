@@ -184,6 +184,7 @@ so a database hiccup can never take the site down.
 | `/nominee/<slug>?vote=true&src=qr` | Encoded in the QR code — scans are counted separately from taps |
 | `/vote/<slug>` | Human-friendly alias for the direct vote URL |
 | `/nominee-kit?nominee=<slug>` | Campaign kit: poster, story, QR, all captions |
+| `/nominee-status` | OTP-verified nomination tracker — unlocks the nominee's kit on approval |
 | `/sitemap.xml`, `/robots.txt` | Generated live by the middleware |
 
 The numeric-id form (`/nominee/42`) redirects to the slug, so a nominee always
@@ -194,7 +195,26 @@ has exactly **one** canonical URL.
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/analytics/track` | Records page views / voting clicks / share clicks / QR scans (de-duplicated, no voter identity stored) |
+| POST | `/api/nomination-status/send` | Sends an OTP to the nominating mobile (add-on req. 19) |
+| POST | `/api/nomination-status/verify` | Verifies it, returns a 30-minute `nomination_status` token |
+| POST | `/api/nomination-status/lookup` | Returns that mobile's nominations + campaign kit. Rejects vote-purpose tokens and any other mobile's data |
 | GET | `/api/admin/nominees/:id/campaign` | Full MY CAMPAIGN payload + 14-day reach series (auth) |
+
+### 5b. Kit delivery on approval (add-on req. 19)
+
+There is no email/SMS provider connected, so `/nominee-status` is the delivery
+channel. The nominee verifies the mobile number they nominated with, and the
+moment an admin shortlists that nomination their official URL, nominee ID, QR
+code, poster and share copy all appear — no email needed.
+
+If a nomination is approved but its nominee page has not been created yet, the
+page says **"Approved — Page Being Set Up"** rather than promising a kit that
+does not exist. Re-shortlisting the nomination in admin creates the page and the
+kit unlocks automatically.
+
+**Launch control:** voting is gated by the per-category `voting_open` flag in
+Admin → Categories. There is deliberately no hard-coded date gate, because
+requirement 15 states voting rules must remain unchanged.
 
 `GET /api/nominees` now also accepts a **category id** as well as a category
 slug, and returns achievements plus individual social URLs.
