@@ -139,19 +139,21 @@ achievements/social link fields, or analytics.
 
 ### 2. Environment variables
 
-**Nothing is required for testing.** The code falls back to the live deployment:
+**None are required.** Everything has a working default:
 
-| Layer | Default when the env var is unset |
+| What | Default |
 |---|---|
-| Frontend / canonical / OG / QR | the origin the visitor actually loaded, else `https://awards-kab6.vercel.app` |
 | Backend API | `https://awards-production-13eb.up.railway.app/api` |
+| Public origin (canonical, OG, QR, sitemap) | **derived from the incoming request** |
 
-That means every share link, QR code and preview works out of the box on the
-Vercel URL and in local dev — nothing points at a domain that does not resolve.
+The public origin is read from the request itself, so production, preview
+deploys and second Vercel projects all emit correct links automatically — there
+is no hostname to keep in sync. Share links and QR codes can never point at a
+host that does not exist.
 
 | Variable | When to set it |
 |---|---|
-| `VITE_SITE_URL` | **Only** when the real domain goes live, e.g. `https://teluguiconawards.in`. Then set it once and redeploy — it is baked into every canonical URL and OG link. |
+| `VITE_SITE_URL` | Only to force canonical/OG URLs to a different origin than the one being served — e.g. set it to the real custom domain. |
 | `API_BASE_URL` | Only if the backend moves off Railway. |
 | `FRONTEND_URL` (Railway) | Optional. CORS is currently `*`. |
 
