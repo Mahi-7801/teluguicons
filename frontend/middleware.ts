@@ -24,7 +24,12 @@
 //   - Output Directory stays `dist` (Vite preset default).
 
 const API_BASE = (process.env.API_BASE_URL || 'https://awards-production-13eb.up.railway.app/api').replace(/\/+$/, '');
-const SITE_URL = (process.env.VITE_SITE_URL || 'https://teluguiconawards.in').replace(/\/+$/, '');
+// Public origin used for canonical URLs, Open Graph URLs and the sitemap.
+// Falls back to the live Vercel deployment, never to a domain that does not
+// resolve - a share link or QR pointing at a dead host is worse than one
+// pointing at the deployment URL.
+const DEPLOYED_SITE_URL = 'https://awards-kab6.vercel.app';
+const SITE_URL = (process.env.VITE_SITE_URL || DEPLOYED_SITE_URL).replace(/\/+$/, '');
 const EVENT = 'Telugu Icon Digital & Influencer Awards 2026';
 
 const escapeHtml = (value) => String(value == null ? '' : value)

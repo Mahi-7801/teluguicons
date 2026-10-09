@@ -1,8 +1,16 @@
 import { API_BASE } from '../api';
 
-// Canonical public origin. Set VITE_SITE_URL in the deploy environment; the
-// runtime origin is only a fallback so local previews still work.
-const FALLBACK_SITE_URL = 'https://teluguiconawards.in';
+// Canonical public origin.
+//
+// Order of preference:
+//   1. VITE_SITE_URL           - set once the real domain is live
+//   2. the origin the visitor  - so preview deploys and localhost always
+//      actually loaded               produce correct, working links
+//   3. the deployed Vercel URL - last-resort fallback
+//
+// Nothing here is hardcoded to a domain that does not resolve, so a share link
+// or QR generated on any host still opens somewhere real.
+const DEPLOYED_SITE_URL = 'https://awards-kab6.vercel.app';
 
 export const getSiteUrl = () => {
   const configured = (import.meta.env.VITE_SITE_URL || '').trim().replace(/\/+$/, '');
@@ -10,7 +18,7 @@ export const getSiteUrl = () => {
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
     return window.location.origin;
   }
-  return FALLBACK_SITE_URL;
+  return DEPLOYED_SITE_URL;
 };
 
 // One canonical public URL per nominee. The numeric id form is treated as an

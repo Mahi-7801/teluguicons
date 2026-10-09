@@ -137,17 +137,23 @@ The API degrades gracefully if the migration has not been run: nominee pages,
 voting and the admin directory all work, you just don't get `TIC26-` codes,
 achievements/social link fields, or analytics.
 
-### 2. Configure environment variables
+### 2. Environment variables
 
-**Vercel (frontend)** — required for link previews and SEO:
+**Nothing is required for testing.** The code falls back to the live deployment:
 
-| Variable | Value |
+| Layer | Default when the env var is unset |
 |---|---|
-| `VITE_SITE_URL` | `https://teluguiconawards.in` |
-| `API_BASE_URL` | `https://awards-production-13eb.up.railway.app/api` |
+| Frontend / canonical / OG / QR | the origin the visitor actually loaded, else `https://awards-kab6.vercel.app` |
+| Backend API | `https://awards-production-13eb.up.railway.app/api` |
 
-**Railway (backend)** — optional, `FRONTEND_URL` should be the site origin so
-nominee photos can be drawn into the poster canvas.
+That means every share link, QR code and preview works out of the box on the
+Vercel URL and in local dev — nothing points at a domain that does not resolve.
+
+| Variable | When to set it |
+|---|---|
+| `VITE_SITE_URL` | **Only** when the real domain goes live, e.g. `https://teluguiconawards.in`. Then set it once and redeploy — it is baked into every canonical URL and OG link. |
+| `API_BASE_URL` | Only if the backend moves off Railway. |
+| `FRONTEND_URL` (Railway) | Optional. CORS is currently `*`. |
 
 ### 3. How link previews work
 
@@ -206,10 +212,10 @@ printed on posters, QR codes and videos.
 ### 7. Before the 10 October launch checklist
 
 - [ ] Run both migrations
-- [ ] Set `VITE_SITE_URL` + `API_BASE_URL` on Vercel and redeploy
 - [ ] Confirm a shared WhatsApp link previews with the nominee's **name, category and photo** (not the generic site title)
 - [ ] Download one poster per nominee — verify the QR scans into the **correct** nominee page
 - [ ] Flip `voting_open` on categories deliberately; there is no automatic date gate
+- [ ] When the domain goes live: set `VITE_SITE_URL` to it, redeploy, and add it in Vercel → Settings → Domains
 
 ---
 

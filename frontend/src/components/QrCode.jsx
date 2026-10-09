@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getSiteUrl } from '../lib/nomineeCampaign';
 
 // Local QR rendering (no third-party image host), so an offline print run or a
 // blocked CDN still produces a scannable code. Add-on req. 6.
@@ -51,8 +52,9 @@ export default function QrCode({ value, size = 160, className = '', dark = '#0a0
         style={{ background: light }}
       />
       {failed && (
-        <p className="text-[10px] text-white/40 text-center">
-          teluguiconawards.in{value.startsWith('/') ? value : ''}
+        <p className="text-[10px] text-white/40 text-center break-all">
+          {getSiteUrl().replace(/^https?:\/\//, '')}
+          {value.startsWith('/') ? value : ''}
         </p>
       )}
     </>
