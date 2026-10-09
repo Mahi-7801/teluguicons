@@ -151,17 +151,18 @@ nominee photos can be drawn into the poster canvas.
 
 ### 3. How link previews work
 
-`middleware.ts` (repo root) intercepts `/nominee/<slug>` and `/vote/<slug>` on
+`frontend/middleware.ts` intercepts `/nominee/<slug>` and `/vote/<slug>` on
 Vercel and serves the built `index.html` with per-nominee `<title>`, meta
-description, canonical URL, Open Graph, Twitter/X card and JSON-LD injected
-server-side. This is required because **WhatsApp, Facebook, Telegram and X do
-not run JavaScript** — a client-only implementation would preview every nominee
-link as the generic site title.
+description, canonical URL, Open Graph and Twitter/X card tags fetched from the
+API. This is required because **WhatsApp, Facebook, Telegram and X do not run
+JavaScript** — a client-only implementation would preview every nominee link as
+the generic site title.
 
-The Vercel project root must be the **repo root** (so that `middleware.ts`,
-`package.json` and `vercel.json` sit together) with output directory
-`frontend/dist`. The middleware also serves `/robots.txt` and a `/sitemap.xml`
-generated live from the approved nominee list.
+The file lives in `frontend/` because Vercel only picks up Routing Middleware
+from the root of the configured **Root Directory** (yours is `frontend`). If you
+ever change Root Directory, move this file to match. The middleware also serves
+`/robots.txt` and a `/sitemap.xml` generated live from the approved nominee
+list.
 
 If the API is unreachable the middleware falls through to the normal SPA shell,
 so a database hiccup can never take the site down.

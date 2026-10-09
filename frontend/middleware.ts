@@ -16,9 +16,12 @@
 // shell rather than taking the site down.
 //
 // DEPLOY
-//   - Vercel project root must be the repo root (this file sits beside
-//     package.json + vercel.json).
+//   - This file sits in `frontend/` because the Vercel project's Root Directory
+//     is set to `frontend`. Vercel only picks up Routing Middleware from the
+//     root of the project root directory, so it must live here, not at the
+//     repo root.
 //   - Set VITE_SITE_URL and API_BASE_URL in the Vercel project environment.
+//   - Output Directory stays `dist` (Vite preset default).
 
 const API_BASE = (process.env.API_BASE_URL || 'https://awards-production-13eb.up.railway.app/api').replace(/\/+$/, '');
 const SITE_URL = (process.env.VITE_SITE_URL || 'https://teluguiconawards.in').replace(/\/+$/, '');
