@@ -2,6 +2,110 @@
 
 Premium cinematic web platform for the Telugu Icon Awards — celebrating Telugu digital excellence.
 
+---
+
+## 🚨 Read this first — deployment checklist
+
+If you are deploying this yourself, **do these five things before the site goes
+live.** Each one is a real failure mode found by testing this codebase, not
+general advice.
+
+### 1. Create your environment file
+
+`.env` is intentionally **not** committed (it holds secrets). Without it the API
+will not start.
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Then edit `.env`:
+
+| Variable | What to set |
+|---|---|
+| `DB_PORT` | **Match your server.** This machine used 3307; standard MySQL is 3306. |
+| `DB_USER` / `DB_PASSWORD` | Your MySQL credentials. XAMPP defaults to `root` / *(empty)*. |
+| `DB_NAME` | Defaults to `telugu_icon_awards`. |
+| `JWT_SECRET` | **Change it.** A long random string. Rotating it logs out all admins. |
+| `FRONTEND_URL` | Set to your real domain instead of `*` to lock CORS down. |
+
+### 2. Change the default admin password
+
+`database/schema.sql` seeds:
+
+```
+admin@teluguiconawards.com  /  admin123
+```
+
+**This is public knowledge. Change it the moment the site is reachable.**
+
+### 3. Set `TRUST_PROXY=true` — only if anything sits in front of the API
+
+Set this in `backend/.env` when you deploy behind nginx, Cloudflare, Railway,
+or any load balancer.
+
+**Why it matters:** without it the server sees the *proxy's* IP address instead
+of the visitor's, so every user on the site looks like the same person. The
+per-IP vote limit (20/hour) would then be exhausted by the first 20 requests
+from anyone, and the duplicate-vote guard would let the **first person to vote
+lock out the entire audience** with "already voted in this category".
+
+Leave it unset if the API is exposed directly to the internet — trusting a
+client-supplied header when nothing rewrites it lets anyone forge their IP.
+
+### 4. Raise the MySQL buffer pool
+
+XAMPP and most default installs ship with a **16 MB** InnoDB buffer pool. That
+is fine for development and will fall over under real traffic.
+
+```ini
+# C:\xampp\mysql\bin\my.ini   (restart MySQL afterwards)
+[mysqld]
+innodb_buffer_pool_size        = 1G
+max_connections               = 500
+innodb_flush_log_at_trx_commit = 2
+slow_query_log                 = 1
+```
+
+`max_connections` must exceed `instances × DB_POOL_SIZE`, or you will get
+*"Too many connections"* and a dead site.
+
+### 5. Decide how OTP verification works
+
+Until `MSG91_TEMPLATE_ID` is set, `/api/otp/send` returns the code in its
+response as `dev_otp`. That is how local testing works with no SMS cost — but it
+means **anyone can vote without owning the phone number.**
+
+For production either configure MSG91, or make the server reject unverified
+votes. Do not ship with `dev_otp` reachable.
+
+---
+
+### 📄 Full documentation
+
+| Document | What it covers |
+|---|---|
+| [**`docs/TELUGU-ICON-OPS-RUNBOOK.pdf`**](docs/TELUGU-ICON-OPS-RUNBOOK.pdf) | 14 pages: every environment variable, full API reference, nginx config, systemd unit, step-by-step deployment, pre-launch checklist |
+| [Quick Start](#-quick-start) below | Getting it running locally |
+| [Scaling](#-scaling-10k--100k--300k-concurrent-users) below | Handling 10k / 100k / 300k concurrent users |
+
+Regenerate the runbook after changing it:
+```bash
+cd frontend && npm run docs
+```
+
+### ✅ Current status
+
+| | |
+|---|---|
+| Database | MySQL / MariaDB via `mysql2`. All 23 tables in one idempotent `schema.sql`. |
+| Tests | 85 end-to-end checks, 34 endpoint checks — all passing. |
+| Security | No secrets committed. Duplicate votes enforced by database unique keys. |
+| Known limits | Voting caps around 1,000 concurrent voters per instance — see [the lock section](#-the-vote-count-lock-problem-fixed--and-how-to-go-further). |
+
+---
+
 ## Project Structure
 
 ```
