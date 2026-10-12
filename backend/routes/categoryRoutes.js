@@ -78,7 +78,7 @@ router.get('/:slug', async (req, res) => {
   try {
     const rows = await cached(`category:${req.params.slug}`, 60, async () => {
       const [rows] = await pool.query(
-        'SELECT id, name, slug, type, description, icon, sort_order, voting_open FROM categories WHERE slug = ? OR id::text = ? LIMIT 1',
+        'SELECT id, name, slug, type, description, icon, sort_order, voting_open FROM categories WHERE slug = ? OR CAST(id AS CHAR) = ? LIMIT 1',
         [req.params.slug, req.params.slug]
       );
       return rows;

@@ -19,6 +19,10 @@ export default function QrBlock({
   dark = '#0a0a0a',
   light = '#ffffff',
   onDataUrl,
+  // Wraps the code in an <a href={value}>. Turn this off when the encoded value
+  // is not a URL (a gate-pass token, for example) - otherwise the wrapper points
+  // at a relative path that 404s.
+  linkify = true,
 }) {
   const canvasRef = useRef(null);
   const [mode, setMode] = useState(value ? 'loading' : 'idle');
@@ -65,35 +69,45 @@ export default function QrBlock({
   const displayUrl = value.replace(/^https?:\/\//, '');
   const fallbackSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(value)}&size=${size * 3}x${size * 3}&margin=8&format=png`;
 
+  const code = (
+    <>
+      {mode === 'fallback' ? (
+        <img
+          src={fallbackSrc}
+          width={size}
+          height={size}
+          alt={`QR code for ${displayUrl}`}
+          className="block rounded-md"
+        />
+      ) : (
+        <canvas
+          ref={canvasRef}
+          width={size}
+          height={size}
+          role="img"
+          aria-label={`QR code linking to ${displayUrl}`}
+          className="block rounded-md"
+          style={{ background: light }}
+        />
+      )}
+    </>
+  );
+
   return (
     <div className="flex flex-col items-center gap-2 shrink-0">
-      <a
-        href={value}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Open this link"
-        className="block rounded-lg bg-white p-1.5 hover:opacity-90 transition-opacity"
-      >
-        {mode === 'fallback' ? (
-          <img
-            src={fallbackSrc}
-            width={size}
-            height={size}
-            alt={`QR code for ${displayUrl}`}
-            className="block rounded-md"
-          />
-        ) : (
-          <canvas
-            ref={canvasRef}
-            width={size}
-            height={size}
-            role="img"
-            aria-label={`QR code linking to ${displayUrl}`}
-            className="block rounded-md"
-            style={{ background: light }}
-          />
-        )}
-      </a>
+      {linkify ? (
+        <a
+          href={value}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open this link"
+          className="block rounded-lg bg-white p-1.5 hover:opacity-90 transition-opacity"
+        >
+          {code}
+        </a>
+      ) : (
+        <div className="block rounded-lg bg-white p-1.5">{code}</div>
+      )}
 
       {label && (
         <span className="text-champagne-400/60 text-[10px] uppercase tracking-widest font-bold">

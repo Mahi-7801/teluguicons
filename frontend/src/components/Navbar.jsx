@@ -49,6 +49,23 @@ export default function Navbar() {
     setExploreOpen(false);
   }, [location.pathname]);
 
+  // While the drawer is open the page behind must not scroll - on mobile that
+  // otherwise lets the document pan sideways and look like a broken layout.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [isOpen]);
+
+  // Escape closes the drawer.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setIsOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen]);
+
   return (
     <>
       <div className="fixed top-0 left-0 right-0 z-50 bg-[#0d0303] border-b border-[rgba(216,181,107,0.25)] text-[10px] sm:text-[11px] text-[#cdbda9] py-1 sm:py-1.5 px-2 sm:px-4 tracking-wider">
@@ -62,20 +79,20 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
             {/* Brand Logo */}
-            <Link to="/" className="flex items-center space-x-2.5 sm:space-x-3 shrink-0 group">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-champagne-400 via-amber-500 to-burgundy-600 p-[1px] shadow-gold transition-transform duration-300 group-hover:scale-105">
-                <div className="w-full h-full bg-ink-950 rounded-[11px] flex items-center justify-center">
-                  <span className="font-display font-black text-[10px] sm:text-xs text-champagne-400 tracking-wider">TIA</span>
-                </div>
-              </div>
-              <div className="hidden sm:block">
-                <span className="font-display text-champagne-400 font-bold text-sm lg:text-base tracking-wide leading-none block">
-                  TELUGU ICON
-                </span>
-                <span className="block text-white/40 text-[9px] tracking-[0.22em] uppercase font-sans mt-1">
-                  Digital & Influencer Awards 2026
-                </span>
-              </div>
+            <Link to="/" className="flex items-center gap-3 shrink-0 group" aria-label="Telugu Icon Digital & Influencer Awards 2026 - home">
+              {/* The official artwork has a solid white background, so it sits in a
+                  white plate rather than being pasted onto the near-black bar.
+                  The nav variant is cropped to drop the tagline, which would be
+                  ~3px tall at this size. */}
+              <span className="shrink-0 inline-flex items-center justify-center h-8 sm:h-9 lg:h-11 max-w-[42vw] sm:max-w-none px-1.5 rounded-lg bg-white shadow-[0_2px_10px_rgba(0,0,0,0.4)] ring-1 ring-champagne-400/40 overflow-hidden transition-transform duration-300 group-hover:scale-[1.04]">
+                <img
+                  src="/brand/logo-nav.jpg"
+                  alt="Telugu Icon Awards 2026"
+                  width="480"
+                  height="211"
+                  className="h-full max-w-full w-auto object-contain select-none"
+                />
+              </span>
             </Link>
 
             {/* Desktop Navigation Links */}
@@ -196,7 +213,7 @@ export default function Navbar() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 lg:hidden"
+            className="fixed inset-0 z-40 lg:hidden overflow-hidden"
           >
             <div
               className="fixed inset-0 bg-black/80 backdrop-blur-md"
@@ -207,18 +224,20 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-72 max-w-[82vw] bg-ink-900 border-l border-white/10 p-4 sm:p-6 flex flex-col justify-between overflow-y-auto z-10 shadow-2xl"
+              className="fixed inset-y-0 right-0 w-[19rem] max-w-[88vw] bg-ink-900 border-l border-white/10 p-4 sm:p-5 flex flex-col overflow-y-auto overscroll-contain z-10 shadow-2xl"
             >
               <div className="space-y-5">
                 <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
                   <div className="flex items-center space-x-2">
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-champagne-400 to-burgundy-600 flex items-center justify-center font-bold text-ink-950 text-xs">
-                      TIA
-                    </div>
-                    <div>
-                      <div className="font-display text-champagne-400 font-bold text-xs">TELUGU ICON</div>
-                      <div className="text-[9px] text-white/40 uppercase">Awards 2026</div>
-                    </div>
+                    <span className="inline-flex items-center justify-center h-8 max-w-[58%] px-1.5 rounded-lg bg-white/95 overflow-hidden shrink-0">
+                      <img
+                        src="/brand/logo-sm.jpg"
+                        alt="Telugu Icon Awards 2026"
+                        width="360"
+                        height="158"
+                        className="h-full max-w-full w-auto object-contain select-none"
+                      />
+                    </span>
                   </div>
                   <button
                     onClick={() => setIsOpen(false)}
@@ -295,7 +314,7 @@ export default function Navbar() {
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-white/10 text-center text-[11px] text-white/40">
+              <div className="pt-6 mt-auto border-t border-white/10 text-center text-[11px] text-white/40 shrink-0">
                 16 November 2026<br />
                 <span className="text-champagne-400/70">Shilpakala Vedika, Hyderabad</span>
               </div>

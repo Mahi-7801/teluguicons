@@ -172,8 +172,11 @@ export default function AdminDashboard() {
 
       {/* Main Panel */}
       <main className="flex-1 max-md:ml-0 ml-64 min-w-0">
-        <header className="sticky top-0 z-20 bg-ink-900/95 backdrop-blur-xl border-b border-white/5 px-4 md:px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-20 bg-ink-900/95 backdrop-blur-xl border-b border-white/5 px-3 sm:px-4 md:px-6 py-3.5 flex items-center justify-between gap-2">
+          {/* min-w-0 is required: without it this flex child refuses to shrink
+              below its content width, so the `truncate` on the tab name below
+              never engages and the header pushes the action buttons off-screen. */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -184,13 +187,13 @@ export default function AdminDashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <h1 className="font-display text-base md:text-xl font-bold text-white flex items-center">
-              <span>{currentTab.icon}</span>
+            <h1 className="font-display text-sm sm:text-base md:text-xl font-bold text-white flex items-center min-w-0">
+              <span className="shrink-0">{currentTab.icon}</span>
               <span className="gold-text ml-2 truncate">{currentTab.label}</span>
             </h1>
           </div>
 
-          <div className="flex items-center space-x-2 md:space-x-3">
+          <div className="flex items-center gap-1.5 sm:space-x-2 md:space-x-3 shrink-0">
             <button
               onClick={() => {
                 clearApiCache();
@@ -202,8 +205,10 @@ export default function AdminDashboard() {
               <span className="text-xs">🔄</span>
               <span className="hidden sm:inline text-xs">Sync Live Data</span>
             </button>
-            <a href="/" target="_blank" rel="noopener noreferrer" className="btn-outline !px-3 !py-1.5 text-xs">
-              View Site ↗
+            <a href="/" target="_blank" rel="noopener noreferrer" className="btn-outline !px-2.5 sm:!px-3 !py-1.5 text-xs whitespace-nowrap">
+              <span className="hidden sm:inline">View Site</span>
+              <span className="sm:hidden">Site</span>
+              <span className="hidden sm:inline"> ↗</span>
             </a>
             <button
               onClick={handleLogout}
@@ -1107,7 +1112,7 @@ function NomineesTab() {
                           title="Download QR Code (PNG)"
                           className="shrink-0"
                         >
-                          <QrCode value={qrUrl(nomineeRecord)} size={30} className="bg-white" />
+                          <QrBlock value={qrUrl(nomineeRecord)} size={30} label={null} showUrl={false} />
                         </button>
                         <div className="min-w-0">
                           <div className="text-white/40 text-[10px] font-mono truncate max-w-[120px]">/nominee/{nomineeSlug}</div>
@@ -2473,16 +2478,16 @@ function PastEventsTab() {
           {/* Events List */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {events.map((ev) => (
-              <div key={ev.id} className="glass-card p-5 flex items-start justify-between gap-4">
-                <div className="flex gap-3">
+              <div key={ev.id} className="glass-card p-5 flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+                <div className="flex gap-3 min-w-0 flex-1">
                   {ev.poster_url && (
                     <img src={getAssetUrl(ev.poster_url)} alt="" className="w-16 h-20 object-cover rounded-lg shrink-0 border border-white/10" />
                   )}
-                  <div>
-                    <div className="text-xs font-bold text-champagne-400 uppercase">{ev.year} • {ev.slug}</div>
-                    <h4 className="font-display font-bold text-white text-base mt-1">{ev.name}</h4>
-                    <div className="text-xs text-white/50 mt-1">{ev.venue}</div>
-                    {ev.description && <p className="text-xs text-white/40 mt-2 line-clamp-2">{ev.description}</p>}
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-champagne-400 uppercase break-words">{ev.year} • {ev.slug}</div>
+                    <h4 className="font-display font-bold text-white text-base mt-1 break-words">{ev.name}</h4>
+                    <div className="text-xs text-white/50 mt-1 break-words">{ev.venue}</div>
+                    {ev.description && <p className="text-xs text-white/40 mt-2 line-clamp-2 break-words">{ev.description}</p>}
                   </div>
                 </div>
                 <button
@@ -2803,11 +2808,11 @@ function MediaTab() {
 
           <div className="glass-card p-6 divide-y divide-white/5">
             {media.map((item) => (
-              <div key={item.id} className="py-3.5 flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-[10px] text-champagne-400 uppercase font-semibold">{item.item_type} • {item.source}</div>
-                  <div className="text-sm font-bold text-white mt-0.5">{item.title}</div>
-                  {item.description && <p className="text-xs text-white/50 mt-1 line-clamp-1">{item.description}</p>}
+              <div key={item.id} className="py-3.5 flex items-center justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <div className="text-[10px] text-champagne-400 uppercase font-semibold break-words">{item.item_type} • {item.source}</div>
+                  <div className="text-sm font-bold text-white mt-0.5 break-words">{item.title}</div>
+                  {item.description && <p className="text-xs text-white/50 mt-1 line-clamp-1 break-words">{item.description}</p>}
                 </div>
                 <button
                   onClick={() => handleDeleteMedia(item.id)}
@@ -2859,8 +2864,8 @@ function SponsorLeadsTab() {
         <div className="px-4 py-3 rounded-xl text-sm bg-emerald-900/30 border border-emerald-500/40 text-emerald-200">{message.text}</div>
       )}
       <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-display text-xl font-bold text-white">Partner & Sponsor Enquiries</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <h2 className="font-display text-xl font-bold text-white min-w-0 break-words">Partner &amp; Sponsor Enquiries</h2>
           <button
             onClick={() => load(true)}
             className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs border border-white/10 flex items-center gap-1"
@@ -2879,29 +2884,33 @@ function SponsorLeadsTab() {
           <div className="divide-y divide-white/5">
             {leads.map((lead) => (
               <div key={lead.id} className={`py-4 ${lead.is_read ? 'opacity-70' : ''}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-base">{lead.company}</span>
+                {/* flex-wrap lets the action buttons drop below the details on a
+                    narrow screen instead of squeezing the row. */}
+                <div className="flex flex-wrap items-start justify-between gap-3 sm:gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-white text-base break-words">{lead.company}</span>
                       {lead.package_interest && (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-champagne-500/10 text-champagne-400 border border-champagne-500/30 uppercase">
                           {lead.package_interest}
                         </span>
                       )}
                       {!lead.is_read && (
-                        <span className="w-2 h-2 rounded-full bg-champagne-400" title="New" />
+                        <span className="w-2 h-2 rounded-full bg-champagne-400 shrink-0" title="New" />
                       )}
                     </div>
-                    <div className="text-xs text-white/60 mt-1">
-                      Contact: <strong className="text-white">{lead.contact_person}</strong> • 
-                      <a href={`tel:${lead.mobile}`} className="text-champagne-400 ml-1 mr-2">{lead.mobile}</a>
-                      <a href={`mailto:${lead.email}`} className="text-white/40 hover:underline">{lead.email}</a>
+                    <div className="text-xs text-white/60 mt-1 flex flex-wrap items-center gap-x-1 gap-y-1">
+                      <span>
+                        Contact: <strong className="text-white">{lead.contact_person}</strong>
+                      </span>
+                      <a href={`tel:${lead.mobile}`} className="text-champagne-400 hover:underline break-all">{lead.mobile}</a>
+                      <a href={`mailto:${lead.email}`} className="text-white/40 hover:underline break-all">{lead.email}</a>
                     </div>
                     {lead.industry && (
-                      <div className="text-[11px] text-white/40 mt-1">Industry: {lead.industry}</div>
+                      <div className="text-[11px] text-white/40 mt-1 break-words">Industry: {lead.industry}</div>
                     )}
                     {lead.message && (
-                      <p className="text-xs text-white/70 mt-2 p-3 rounded-xl bg-ink-900/60 border border-white/5">
+                      <p className="text-xs text-white/70 mt-2 p-3 rounded-xl bg-ink-900/60 border border-white/5 break-words">
                         "{lead.message}"
                       </p>
                     )}
@@ -2910,14 +2919,14 @@ function SponsorLeadsTab() {
                     {!lead.is_read && (
                       <button
                         onClick={() => markRead(lead.id)}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-xs shrink-0"
+                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70 text-xs shrink-0 whitespace-nowrap"
                       >
                         Mark Read
                       </button>
                     )}
                     <button
                       onClick={() => deleteLead(lead.id, lead.company)}
-                      className="px-3 py-1.5 rounded-lg bg-burgundy-900/30 hover:bg-burgundy-900/50 text-burgundy-300 border border-burgundy-500/20 text-xs"
+                      className="px-3 py-1.5 rounded-lg bg-burgundy-900/30 hover:bg-burgundy-900/50 text-burgundy-300 border border-burgundy-500/20 text-xs whitespace-nowrap"
                     >
                       Delete 🗑️
                     </button>
@@ -3000,65 +3009,94 @@ function PhaseTab() {
   ];
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-5 max-w-4xl">
       {message && (
         <div className={`px-4 py-3 rounded-xl text-sm border ${message.type === 'error' ? 'bg-red-900/30 border-red-500/40 text-red-200' : 'bg-emerald-900/30 border-emerald-500/40 text-emerald-200'}`}>
           {message.text}
         </div>
       )}
 
-      <div className="glass-card p-6">
-        <h2 className="font-display text-xl font-bold text-white mb-2">5-Phase Lifecycle Control</h2>
-        <p className="text-white/40 text-xs mb-6">
+      {(() => {
+        const active = PHASES.find((p) => p.id === currentPhase);
+        return (
+          <div className="rounded-2xl border border-champagne-500/40 bg-champagne-500/10 p-4 sm:p-5">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-champagne-400 font-bold mb-1">
+              Currently live on the site
+            </div>
+            <div className="font-display text-lg sm:text-xl font-bold text-white break-words">
+              {active ? `Phase ${active.num} · ${active.title}` : 'Loading phase...'}
+            </div>
+            {active && (
+              <p className="text-xs text-white/60 mt-1.5 leading-relaxed break-words">{active.desc}</p>
+            )}
+          </div>
+        );
+      })()}
+
+      <div className="glass-card p-4 sm:p-6">
+        <h2 className="font-display text-lg sm:text-xl font-bold text-white mb-2">5-Phase Lifecycle Control</h2>
+        <p className="text-white/40 text-[11px] sm:text-xs mb-5">
           Instantly switches public countdown banners, hero calls-to-action, and voting availability across the entire website.
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {PHASES.map((p) => {
             const isActive = currentPhase === p.id;
             return (
               <div
                 key={p.id}
-                onClick={() => savePhase(p.id)}
-                className={`p-5 rounded-2xl border cursor-pointer transition-all flex items-start justify-between gap-4 ${
+                role="button"
+                tabIndex={0}
+                aria-pressed={isActive}
+                onClick={() => !isActive && savePhase(p.id)}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && !isActive) {
+                    e.preventDefault();
+                    savePhase(p.id);
+                  }
+                }}
+                className={`relative rounded-2xl border cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 sm:p-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne-400 ${
                   isActive
                     ? 'bg-champagne-500/15 border-champagne-500 shadow-gold'
-                    : 'bg-ink-900/60 border-white/5 hover:border-white/20'
+                    : 'bg-ink-900/60 border-white/5 hover:border-white/20 active:border-champagne-500/50'
                 }`}
               >
-                <div className="flex items-start gap-4">
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                <span className={`absolute left-0 top-4 bottom-4 w-[3px] rounded-full ${isActive ? 'bg-champagne-400' : 'bg-transparent'}`} aria-hidden="true" />
+
+                <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                  <span className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-bold shrink-0 ${
                     isActive ? 'bg-champagne-500 text-ink-900' : 'bg-white/10 text-white/60'
                   }`}>
                     {p.num}
                   </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-display font-bold text-white text-base">{p.title}</h4>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <h4 className="font-display font-bold text-white text-[15px] sm:text-base leading-snug break-words">{p.title}</h4>
                       {isActive && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-champagne-500 text-ink-900 uppercase">
+                        <span className="px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold bg-champagne-500 text-ink-900 uppercase tracking-wide shrink-0">
                           Active Now
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-white/60 mt-1 leading-relaxed">{p.desc}</p>
-                    <div className="text-[11px] text-champagne-400 font-semibold mt-2">
-                      Primary Hero CTA: "{p.cta}"
+                    <p className="text-[11px] sm:text-xs text-white/60 mt-1 leading-relaxed break-words">{p.desc}</p>
+                    <div className="text-[10px] sm:text-[11px] text-champagne-400 font-semibold mt-1.5 break-words">
+                      Hero CTA &rarr; &ldquo;{p.cta}&rdquo;
                     </div>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={saving}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                {/* A styled span, not a <button>: the whole card is the control,
+                    and nesting a real button inside it breaks keyboard/AT semantics. */}
+                <span
+                  aria-hidden="true"
+                  className={`w-full sm:w-auto shrink-0 text-center sm:text-left px-4 py-2 rounded-xl text-xs font-bold transition-colors pointer-events-none ${
                     isActive
-                      ? 'bg-champagne-500 text-ink-900'
-                      : 'bg-white/5 text-white/50 hover:text-white border border-white/10'
+                      ? 'bg-champagne-500/25 text-champagne-300 border border-champagne-500/50'
+                      : 'bg-white/5 text-white/60 border border-white/10'
                   }`}
                 >
-                  {isActive ? 'Current Phase' : 'Switch to this'}
-                </button>
+                  {isActive ? 'Current Phase' : (saving ? 'Switching...' : 'Switch to this')}
+                </span>
               </div>
             );
           })}

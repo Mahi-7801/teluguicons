@@ -191,12 +191,12 @@ export default function NomineeStatus() {
 
               {result.nominations.map((nomination) => (
                 <div key={nomination.nomination_code || nomination.applicant_name} className="glass-card p-5 sm:p-6 space-y-4 border-champagne-500/20">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="font-display text-lg font-bold text-white">{nomination.applicant_name}</h2>
-                      <p className="text-white/50 text-xs mt-0.5">{nomination.category_name}</p>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="font-display text-lg font-bold text-white break-words">{nomination.applicant_name}</h2>
+                      <p className="text-white/50 text-xs mt-0.5 break-words">{nomination.category_name}</p>
                       {nomination.nomination_code && (
-                        <p className="text-white/30 text-[10px] font-mono mt-1">Nomination ID: {nomination.nomination_code}</p>
+                        <p className="text-white/30 text-[10px] font-mono mt-1 break-all">Nomination ID: {nomination.nomination_code}</p>
                       )}
                     </div>
                     <span className={`shrink-0 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${STATUS_STYLES[nomination.status.tone] || STATUS_STYLES.pending}`}>

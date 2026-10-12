@@ -33,30 +33,38 @@ async function uniqueSlug(desired, excludeId) {
 }
 
 // TIC26-00001, TIC26-00002, ...
-// Prefers the Postgres sequence created by migration-nominee-pages.sql; falls
-// back to max(existing)+1 so the endpoint keeps working before the migration
-// has been applied.
+// MySQL has no sequences, so the number comes from the `code_counters` table.
+// LAST_INSERT_ID(expr) returns the pre-increment value on the row that already
+// existed and the new value on the row that was inserted, so one statement
+// yields 1 on the first call and n on every later call - atomically, so two
+// concurrent inserts can never be handed the same code.
 async function generateNomineeCode() {
+  const conn = await pool.getConnection();
   try {
-    const [rows] = await pool.query("SELECT 'TIC26-' || LPAD(NEXTVAL('public.nominee_code_seq')::TEXT, 5, '0') AS code");
-    if (rows[0] && rows[0].code) return rows[0].code;
-  } catch (_) {
-    // sequence not created yet - fall through
+    await conn.query(
+      `INSERT INTO code_counters (name, value) VALUES ('nominee_code', LAST_INSERT_ID(1))
+         ON DUPLICATE KEY UPDATE value = LAST_INSERT_ID(value + 1)`
+    );
+    const [rows] = await conn.query('SELECT LAST_INSERT_ID() AS n');
+    const next = Number((rows[0] && rows[0].n) || 1);
+    return CODE_PREFIX + String(next).padStart(CODE_PAD, '0');
+  } catch (error) {
+    // The counters table is missing (older database) - fall back to max+1 so
+    // the endpoint keeps working.
+    const [rows] = await pool.query(
+      "SELECT CAST(COALESCE(MAX(CAST(SUBSTRING_INDEX(nominee_code, '-', -1) AS UNSIGNED)), 0) AS SIGNED) + 1 AS next FROM nominees WHERE nominee_code LIKE 'TIC26-%'"
+    );
+    const next = Number((rows[0] && rows[0].next) || 1);
+    return CODE_PREFIX + String(next).padStart(CODE_PAD, '0');
+  } finally {
+    conn.release();
   }
-
-  const [rows] = await pool.query(
-    `SELECT COALESCE(MAX(NULLIF(regexp_replace(nominee_code, '\\D', '', 'g'), '')::INTEGER), 0) + 1 AS next
-       FROM nominees
-      WHERE nominee_code LIKE 'TIC26-%'`
-  );
-  const next = Number((rows[0] && rows[0].next) || 1);
-  return CODE_PREFIX + String(next).padStart(CODE_PAD, '0');
 }
 
 function isUniqueViolation(error) {
   if (!error) return false;
-  if (error.code === '23505') return true;
-  return /duplicate key value|unique constraint/i.test(String(error.message || ''));
+  if (error.code === 'ER_DUP_ENTRY') return true;
+  return /duplicate entry|duplicate key/i.test(String(error.message || ''));
 }
 
 // Runs `insert` with a fresh nominee code, retrying on the (rare) chance of a
@@ -84,9 +92,9 @@ const clientIp = (req) => {
   return (req.ip || (req.connection && req.connection.remoteAddress) || '').slice(0, 60) || null;
 };
 
-// Migrations here are applied by hand in the Supabase SQL editor, so a column can
-// be missing on a database that has not been updated yet. Probe once and cache
-// so the API keeps serving instead of erroring with "column does not exist".
+// Additive migrations may not have been applied to a given database, so a column
+// can be missing. Probe once and cache so the API keeps serving instead of
+// erroring with "Unknown column".
 const columnCache = new Map();
 
 async function hasColumn(table, column) {
@@ -96,7 +104,7 @@ async function hasColumn(table, column) {
   try {
     const [rows] = await pool.query(
       `SELECT 1 AS ok FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = ? AND column_name = ? LIMIT 1`,
+        WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ? LIMIT 1`,
       [table, column]
     );
     exists = rows.length > 0;

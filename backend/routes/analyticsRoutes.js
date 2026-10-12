@@ -72,7 +72,7 @@ router.post('/track', async (req, res) => {
     const [existing] = await pool.query(
       `SELECT id FROM nominee_campaign_events
         WHERE nominee_id = ? AND event_type = ? AND fingerprint = ?
-          AND created_at > NOW() - (? || ' seconds')::INTERVAL
+          AND created_at > DATE_SUB(NOW(), INTERVAL ? SECOND)
         LIMIT 1`,
       [nomineeId, eventType, fingerprint, String(windowSeconds)]
     );
@@ -88,7 +88,7 @@ router.post('/track', async (req, res) => {
     res.json({ ok: true, counted: true });
   } catch (error) {
     // Analytics must never break the page for a visitor.
-    if (error && error.code === '42P01') {
+    if (error && error.code === 'ER_NO_SUCH_TABLE') {
       return res.json({ ok: true, counted: false, skipped: 'table_missing' });
     }
     console.error('Analytics track error:', error.message);

@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
     const params = [];
     if (event_id) { sql += ' AND a.past_event_id = ?'; params.push(event_id); }
     if (year)     { sql += ' AND a.year = ?';           params.push(year); }
-    if (category) { sql += ' AND a.category ILIKE ?';   params.push(`%${category}%`); }
-    if (name)     { sql += ' AND a.name ILIKE ?';       params.push(`%${name}%`); }
+    if (category) { sql += ' AND a.category LIKE ?';   params.push(`%${category}%`); }
+    if (name)     { sql += ' AND a.name LIKE ?';       params.push(`%${name}%`); }
     sql += ' ORDER BY a.year DESC, a.category ASC LIMIT 200';
     const [rows] = await pool.query(sql, params);
     res.json(rows);

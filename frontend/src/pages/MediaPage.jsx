@@ -200,11 +200,16 @@ export default function MediaPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl bg-ink-900/80 border border-white/5">
                   <div className="text-champagne-400 text-2xl mb-2">📁</div>
-                  <div className="font-bold text-white text-sm">Logo Pack (PNG / SVG)</div>
-                  <div className="text-xs text-white/40 mb-3">Dark, Light & Gold transparent vectors</div>
-                  <a href="/logo.png" download className="text-xs font-semibold text-champagne-400 hover:underline">
-                    Download ZIP (12 MB) ↓
-                  </a>
+                  <div className="font-bold text-white text-sm">Official Logo (PNG)</div>
+                  <div className="text-xs text-white/40 mb-3">Full-colour lockup, 1400 × 467</div>
+                  <div className="flex items-center gap-3">
+                    <a href="/logo.png" download="telugu-icon-awards-2026-logo.png" className="text-xs font-semibold text-champagne-400 hover:underline">
+                      Download PNG ↓
+                    </a>
+                    <a href="/brand/telugu-icon-logo.jpg" download="telugu-icon-awards-2026-logo.jpg" className="text-xs font-semibold text-champagne-400/70 hover:text-champagne-300 hover:underline">
+                      JPEG
+                    </a>
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-ink-900/80 border border-white/5">

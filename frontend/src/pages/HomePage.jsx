@@ -184,12 +184,23 @@ export default function HomePage() {
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto pt-4 sm:pt-10">
-          <div className="text-[10px] sm:text-[11px] uppercase tracking-[3px] sm:tracking-[5px] text-[#f1d99a] font-black mb-3 sm:mb-4">
-            The Telugu Digital Creator Celebration
+          {/* Official artwork carries the brand here, so the h1 no longer repeats
+              the event name - it states the promise instead. Avoids two competing
+              lockups stacked on top of each other. */}
+          <div className="flex justify-center mb-5 sm:mb-7">
+            <span className="inline-flex items-center justify-center rounded-2xl bg-white px-4 py-3 sm:px-6 sm:py-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)] ring-1 ring-[rgba(216,181,107,0.35)]">
+              <img
+                src="/brand/logo-wide.jpg"
+                alt="Telugu Icon Digital & Influencer Awards 2026"
+                width="1200"
+                height="400"
+                className="w-[240px] sm:w-[380px] lg:w-[480px] h-auto object-contain select-none"
+              />
+            </span>
           </div>
 
-          <h1 className="font-serif-luxury text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-black text-[#fff7e8] leading-tight sm:leading-[1.08] max-w-4xl mx-auto mb-4 sm:mb-6">
-            Telugu Icon <span className="block text-[#f1d99a]">Digital &amp; Influencer Awards 2026</span>
+          <h1 className="font-serif-luxury text-xl sm:text-3xl md:text-5xl lg:text-6xl font-black text-[#fff7e8] leading-tight sm:leading-[1.08] max-w-4xl mx-auto mb-4 sm:mb-6">
+            The Telugu Digital <span className="block text-[#f1d99a]">Creator Celebration</span>
           </h1>
 
           <p className="text-[#f6e9d5] text-xs sm:text-base md:text-lg max-w-3xl mx-auto mb-6 sm:mb-8 font-light leading-relaxed">

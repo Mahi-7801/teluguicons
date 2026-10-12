@@ -5,14 +5,28 @@ const otpService = require('../services/otpService');
 const { resolveVerificationMode } = require('./otpRoutes');
 
 // Simple in-memory per-IP rate limit before fraud signals kick in.
+//
+// NOTE: this is per-process state. Under CLUSTER=1 every worker keeps its own
+// counters, so the effective ceiling is VOTE_RATE_MAX x worker count. That is
+// acceptable for flood protection but it is NOT a global quota - use the
+// database-level unique keys (uq_votes_category_phone / _email / _device) as
+// the authoritative per-voter limit, which they already are.
 const voteRate = new Map(); // ip -> { count, windowStart }
-const VOTE_RATE_MAX = 20;
-const VOTE_RATE_WINDOW = 60 * 60 * 1000; // 1 hour
+const VOTE_RATE_MAX = Number(process.env.VOTE_RATE_MAX) || 20;
+const VOTE_RATE_WINDOW = (Number(process.env.VOTE_RATE_WINDOW_MINUTES) || 60) * 60 * 1000;
+// Hard ceiling on tracked IPs so a flood from many source addresses cannot grow
+// the map without bound. Past the cap the oldest entries are evicted, which
+// only ever fails open (a few IPs get an extra chance), never locks anyone out.
+const VOTE_RATE_MAX_IPS = Number(process.env.VOTE_RATE_MAX_IPS) || 200000;
 
 function checkIpRate(ip, max, windowMs) {
   const now = Date.now();
   const entry = voteRate.get(ip);
   if (!entry || now - entry.windowStart > windowMs) {
+    if (voteRate.size >= VOTE_RATE_MAX_IPS) {
+      const oldest = voteRate.keys().next();
+      if (!oldest.done) voteRate.delete(oldest.value);
+    }
     voteRate.set(ip, { count: 1, windowStart: now });
     return true;
   }
@@ -52,6 +66,57 @@ function isBusyError(err) {
     /getaddrinfo|econnrefused|pool_closed/.test(msg)
   );
 }
+
+// GET /api/votes/check?phone=&nominee_id=
+// Answers "has this mobile number already voted in this nominee's category?"
+// BEFORE an OTP is requested, so a repeat voter is told immediately instead of
+// paying for an SMS and typing a code that will be rejected afterwards.
+//
+// It returns only whether a vote exists plus the nominee/category it was for -
+// never the voter's name, email or IP - so this is not a way to look up who
+// voted. Rate limiting still applies to the real POST /votes; this read is
+// cheap (one indexed lookup on uq_votes_category_phone) and answers "no" for
+// the overwhelming majority of callers.
+router.get('/check', async (req, res) => {
+  try {
+    const mobile = otpService.normalizeMobile(req.query.phone);
+    if (!mobile) {
+      return res.status(400).json({ message: 'Please enter a valid 10-digit Indian mobile number.' });
+    }
+    const nomineeId = parseInt(req.query.nominee_id, 10);
+    if (!nomineeId) {
+      return res.status(400).json({ message: 'nominee_id is required' });
+    }
+
+    const [nominees] = await pool.query('SELECT id, category_id FROM nominees WHERE id = ? LIMIT 1', [nomineeId]);
+    if (nominees.length === 0) {
+      return res.status(404).json({ message: 'Nominee not found' });
+    }
+    const categoryId = nominees[0].category_id;
+
+    const [rows] = await pool.query(
+      `SELECT n.full_name AS nominee_name, c.name AS category_name, v.created_at
+         FROM votes v
+         JOIN nominees n  ON n.id = v.nominee_id
+         JOIN categories c ON c.id = v.category_id
+        WHERE v.category_id = ? AND v.voter_phone = ?
+        LIMIT 1`,
+      [categoryId, mobile]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ already_voted: false });
+    }
+    res.json({
+      already_voted: true,
+      nominee_name: rows[0].nominee_name,
+      category_name: rows[0].category_name,
+      voted_at: rows[0].created_at,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 router.post('/', async (req, res) => {
   let conn;
@@ -161,34 +226,48 @@ router.post('/', async (req, res) => {
     // InnoDB can raise a deadlock (1213) / lock wait timeout (1205) when many
     // parallel votes hit the same category range + the shared nominee row, so the
     // transaction is retried a few times with a small jitter before giving up.
+    //
+    // The connection MUST be released on every exit path, including the duplicate
+    // -key rejection: the pool only has DB_POOL_SIZE connections, so leaking even
+    // one per duplicate vote exhausts it and every later request hangs in the
+    // queue forever. try/finally guarantees that.
     conn = await pool.getConnection();
     let recorded = false;
-    for (let attempt = 1; attempt <= 4 && !recorded; attempt++) {
-      try {
-        await conn.beginTransaction();
-        await conn.query(
-          `INSERT INTO votes (nominee_id, category_id, voter_name, voter_email, voter_phone, ip_address, user_agent, otp_verified, verification_token, device_fingerprint)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [nominee_id, nominee.category_id, username, useremail, mobile, ip, ua, otpVerified, tokenHash, fingerprint]
-        );
-        await conn.query('UPDATE nominees SET vote_count = vote_count + 1 WHERE id = ?', [nominee_id]);
-        await conn.commit();
-        recorded = true;
-      } catch (insertErr) {
-        try { await conn.rollback(); } catch (_) {}
-        if (insertErr.code === '23505') {
-          return res.status(400).json({ message: duplicateMessage(insertErr) });
+    let duplicateError = null;
+    try {
+      for (let attempt = 1; attempt <= 4 && !recorded; attempt++) {
+        try {
+          await conn.beginTransaction();
+          await conn.query(
+            `INSERT INTO votes (nominee_id, category_id, voter_name, voter_email, voter_phone, ip_address, user_agent, otp_verified, verification_token, device_fingerprint)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [nominee_id, nominee.category_id, username, useremail, mobile, ip, ua, otpVerified, tokenHash, fingerprint]
+          );
+          await conn.query('UPDATE nominees SET vote_count = vote_count + 1 WHERE id = ?', [nominee_id]);
+          await conn.commit();
+          recorded = true;
+        } catch (insertErr) {
+          try { await conn.rollback(); } catch (_) {}
+          if (insertErr.code === 'ER_DUP_ENTRY') {
+            duplicateError = insertErr;
+            break;
+          }
+          const retryable = insertErr.code === 'ER_LOCK_DEADLOCK' || insertErr.code === 'ER_LOCK_WAIT_TIMEOUT';
+          if (retryable && attempt < 4) {
+            await new Promise((r) => setTimeout(r, 20 + Math.floor(Math.random() * 60)));
+            continue;
+          }
+          throw insertErr;
         }
-        const retryable = insertErr.code === '40001' || insertErr.code === '40P01';
-        if (retryable && attempt < 4) {
-          await new Promise((r) => setTimeout(r, 20 + Math.floor(Math.random() * 60)));
-          continue;
-        }
-        throw insertErr;
       }
+    } finally {
+      conn.release();
+      conn = null;
     }
-    conn.release();
-    conn = null;
+
+    if (duplicateError) {
+      return res.status(400).json({ message: duplicateMessage(duplicateError) });
+    }
     if (!recorded) {
       throw Object.assign(new Error('Could not record vote after retries'), { transient: true });
     }
@@ -205,15 +284,16 @@ router.post('/', async (req, res) => {
 });
 
 function duplicateMessage(err) {
-  const constraint = String(err.constraint || '');
-  const sql = String(err.sql || err.sqlMessage || '');
-  if (constraint.includes('uq_votes_category_device')) {
+  // MySQL reports the offending index by name in the message:
+  //   Duplicate entry '...' for key 'votes.uq_votes_category_phone'
+  const sql = String(err.sqlMessage || err.message || '');
+  if (sql.includes('uq_votes_category_device')) {
     return 'You have already voted in this category from this device.';
   }
-  if (constraint.includes('uq_votes_category_email')) {
+  if (sql.includes('uq_votes_category_email')) {
     return 'This email address has already voted in this category.';
   }
-  if (constraint.includes('uq_votes_category_phone') || /voter_phone/.test(sql)) {
+  if (sql.includes('uq_votes_category_phone') || /voter_phone/.test(sql)) {
     return 'This mobile number has already voted in this category.';
   }
   return 'This email address has already voted in this category.';

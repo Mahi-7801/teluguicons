@@ -2,7 +2,7 @@
  * fix-mock-data.js
  * ----------------
  * Removes ALL seeded/mock data from:
- *   - gallery_items  (4 Unsplash photos seeded by push-all-tables-supabase.js)
+ *   - gallery_items  (4 Unsplash photos seeded by setup-database.js)
  *   - past_events    (2 seed events: Telugu Icon Awards 2026, Stree Shakti 2025)
  *
  * Safe: only deletes rows whose URLs are from unsplash.com or whose slugs
@@ -12,54 +12,55 @@
  */
 
 require('dotenv').config();
-const { Client } = require('pg');
+const { pool } = require('../config/database');
 
 async function main() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    console.error('ERROR: DATABASE_URL not set in .env');
-    process.exit(1);
-  }
-
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
-  await client.connect();
-  console.log('Connected to Supabase.\n');
+  const conn = await pool.getConnection();
+  console.log('Connected to MySQL.\n');
 
   // ── 1. Gallery: delete all Unsplash mock images ──────────────────────────────
-  const galleryBefore = await client.query('SELECT id, title, url FROM gallery_items ORDER BY id');
-  console.log(`Gallery items BEFORE: ${galleryBefore.rows.length}`);
-  galleryBefore.rows.forEach(r => console.log(`  [${r.id}] ${r.title} | ${r.url.substring(0, 60)}...`));
+  const [galleryBefore] = await conn.query('SELECT id, title, url FROM gallery_items ORDER BY id');
+  console.log(`Gallery items BEFORE: ${galleryBefore.length}`);
+  galleryBefore.forEach((r) => console.log(`  [${r.id}] ${r.title} | ${String(r.url).substring(0, 60)}...`));
 
-  const galDel = await client.query(
-    `DELETE FROM gallery_items WHERE url LIKE '%unsplash.com%' RETURNING id, title`
-  );
-  console.log(`\nDeleted ${galDel.rows.length} mock gallery item(s):`);
-  galDel.rows.forEach(r => console.log(`  - [${r.id}] ${r.title}`));
+  const [galDel] = await conn.query("SELECT id, title FROM gallery_items WHERE url LIKE '%unsplash.com%'");
+  if (galDel.length > 0) {
+    await conn.query("DELETE FROM gallery_items WHERE url LIKE '%unsplash.com%'");
+  }
+  console.log(`\nDeleted ${galDel.length} mock gallery item(s):`);
+  galDel.forEach((r) => console.log(`  - [${r.id}] ${r.title}`));
 
   // ── 2. Past Events: delete known seed slugs ────────────────────────────────
-  const eventsBefore = await client.query('SELECT id, slug, name FROM past_events ORDER BY id');
-  console.log(`\nPast events BEFORE: ${eventsBefore.rows.length}`);
-  eventsBefore.rows.forEach(r => console.log(`  [${r.id}] ${r.slug} | ${r.name}`));
+  const [eventsBefore] = await conn.query('SELECT id, slug, name FROM past_events ORDER BY id');
+  console.log(`\nPast events BEFORE: ${eventsBefore.length}`);
+  eventsBefore.forEach((r) => console.log(`  [${r.id}] ${r.slug} | ${r.name}`));
 
   const seedSlugs = ['telugu-icon-awards-2026', 'stree-shakti-pratibha-awards-2025'];
-  const evDel = await client.query(
-    `DELETE FROM past_events WHERE slug = ANY($1::text[]) RETURNING id, slug, name`,
-    [seedSlugs]
+  const [evDel] = await conn.query(
+    `SELECT id, slug, name FROM past_events WHERE slug IN (${seedSlugs.map(() => '?').join(',')})`,
+    seedSlugs
   );
-  console.log(`\nDeleted ${evDel.rows.length} mock past event(s):`);
-  evDel.rows.forEach(r => console.log(`  - [${r.id}] ${r.slug} | ${r.name}`));
+  if (evDel.length > 0) {
+    await conn.query(
+      `DELETE FROM past_events WHERE slug IN (${seedSlugs.map(() => '?').join(',')})`,
+      seedSlugs
+    );
+  }
+  console.log(`\nDeleted ${evDel.length} mock past event(s):`);
+  evDel.forEach((r) => console.log(`  - [${r.id}] ${r.slug} | ${r.name}`));
 
   // ── 3. Summary ─────────────────────────────────────────────────────────────
-  const galAfter = await client.query('SELECT COUNT(*)::int AS c FROM gallery_items');
-  const evAfter  = await client.query('SELECT COUNT(*)::int AS c FROM past_events');
-  console.log(`\nGallery items remaining : ${galAfter.rows[0].c}`);
-  console.log(`Past events remaining   : ${evAfter.rows[0].c}`);
+  const [galAfter] = await conn.query('SELECT CAST(COUNT(*) AS SIGNED) AS c FROM gallery_items');
+  const [evAfter] = await conn.query('SELECT CAST(COUNT(*) AS SIGNED) AS c FROM past_events');
+  console.log(`\nGallery items remaining : ${galAfter[0].c}`);
+  console.log(`Past events remaining   : ${evAfter[0].c}`);
   console.log('\nDone. All mock/seed data removed from database.');
 
-  await client.end();
+  conn.release();
+  await pool.end();
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Error:', err.message);
   process.exit(1);
 });

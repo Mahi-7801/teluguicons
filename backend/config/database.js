@@ -1,129 +1,58 @@
-const { Pool, Client } = require('pg');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 // ---------------------------------------------------------------------------
-// Supabase / PostgreSQL connection with a thin mysql2-compatible wrapper.
+// MySQL (XAMPP) connection pool.
 //
 // The routes were written for mysql2 and use:
 //   const [rows] = await pool.query('SELECT ... WHERE id = ?', [id]);
 //   const [result] = await pool.query('INSERT INTO ... VALUES (?)', [v]);
 //   result.insertId
 //   const conn = await pool.getConnection(); conn.beginTransaction(); ...
-//
-// This wrapper keeps those call sites unchanged while talking to Postgres via
-// the `pg` driver. `?` placeholders are rewritten to `$1, $2, ...` and INSERT
-// statements get an automatic `RETURNING id` so `result.insertId` still works.
 // ---------------------------------------------------------------------------
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  (process.env.PGHOST
-    ? `postgresql://${process.env.PGUSER || 'postgres'}:${process.env.PGPASSWORD || ''}@${process.env.PGHOST}:${process.env.PGPORT || 5432}/${process.env.PGDATABASE || 'postgres'}`
-    : undefined);
+const DB_NAME = process.env.DB_NAME || 'telugu_icon_awards';
 
-let pool;
-if (!connectionString) {
-  console.warn('⚠️ No database configured. Set DATABASE_URL (Supabase connection string) in Railway Variables.');
-  pool = {
-    query: async () => [[], { mock: true }],
-    getConnection: async () => ({
-      query: async () => [[], { mock: true }],
-      beginTransaction: async () => {},
-      commit: async () => {},
-      rollback: async () => {},
-      release: () => {},
-    }),
-    on: () => {},
-  };
-} else {
-  const poolConfig = {
-    connectionString,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000,
-    max: Number(process.env.DB_POOL_SIZE) || 10,
-    keepAlive: true,
-  };
+const poolConfig = {
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: Number(process.env.DB_PORT) || 3306,
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: DB_NAME,
+  waitForConnections: true,
+  connectionLimit: Number(process.env.DB_POOL_SIZE) || 10,
+  queueLimit: Number(process.env.DB_QUEUE_LIMIT) || 50000,
+  charset: 'utf8mb4_unicode_ci',
+  timezone: process.env.DB_TIMEZONE || 'Z',
+  dateStrings: false,
+  supportBigNumbers: true,
+  bigNumberStrings: false,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+};
 
-  if (process.env.PGHOST_IS_POOLER === 'true') {
-    poolConfig.options = '-c search_path=public';
-  }
+const pool = mysql.createPool(poolConfig);
 
-  if (process.env.DB_SSL !== 'false') {
-    poolConfig.ssl = { rejectUnauthorized: false };
-  }
-
-  pool = new Pool(poolConfig);
-  pool.on('error', (err) => {
-    console.error('PG pool error:', err.message);
+pool.on('connection', (conn) => {
+  // Fail fast instead of hanging the request if the server drops the link.
+  conn.on('error', (err) => {
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+      console.error('MySQL connection lost:', err.message);
+    }
   });
-}
-
-const nativeQuery = (pool.query && pool.query.bind) ? pool.query.bind(pool) : async () => ({ rows: [] });
-
-// Rewrite mysql2 `?` placeholders to PostgreSQL `$1, $2 ...`.
-function convertPlaceholders(sql, params) {
-  if (params === undefined || params === null || params.length === 0) return { sql, params: [] };
-  let i = 0;
-  return { sql: sql.replace(/\?/g, () => `$${++i}`), params };
-}
-
-// INSERT statements get RETURNING id so `result.insertId` keeps working.
-function withReturningId(sql) {
-  if (/^\s*\binsert\b/i.test(sql) && !/\breturning\b/i.test(sql)) {
-    return sql.replace(/;?\s*$/, '') + ' RETURNING id';
-  }
-  return sql;
-}
-
-const FIELDS_MOCK = { mock: true };
-
-function normalizeResult(result, sql) {
-  const rows = (result && result.rows) || [];
-  // mysql2 returns a ResultSetHeader for INSERT as the first tuple element,
-  // e.g. const [result] = await pool.query(insertSql); result.insertId
-  if (/^\s*\binsert\b/i.test(sql) && rows[0] && rows[0].id !== undefined) {
-    return [{ insertId: rows[0].id, affectedRows: 1 }, FIELDS_MOCK];
-  }
-  return [rows, FIELDS_MOCK];
-}
-
-async function query(text, params) {
-  const sql = withReturningId(text);
-  const { sql: pgSql, params: pgParams } = convertPlaceholders(sql, params);
-  const result = await nativeQuery(pgSql, pgParams);
-  return normalizeResult(result, sql);
-}
-
-async function getConnection() {
-  const client = await pool.connect();
-  const wrapped = {
-    query: async (text, params) => {
-      const sql = withReturningId(text);
-      const { sql: pgSql, params: pgParams } = convertPlaceholders(sql, params);
-      const result = await client.query(pgSql, pgParams);
-      return normalizeResult(result, sql);
-    },
-    beginTransaction: () => client.query('BEGIN'),
-    commit: () => client.query('COMMIT'),
-    rollback: () => client.query('ROLLBACK'),
-    release: () => client.release(),
-  };
-  return wrapped;
-}
+});
 
 const testConnection = async () => {
   try {
-    await pool.query('SELECT 1');
-    console.log('✓ Supabase (PostgreSQL) Connected Successfully');
+    const conn = await pool.getConnection();
+    await conn.query('SELECT 1');
+    conn.release();
+    console.log(`✓ MySQL Connected Successfully (${DB_NAME} @ ${poolConfig.host}:${poolConfig.port})`);
     return true;
   } catch (error) {
-    console.error('✗ Supabase (PostgreSQL) Connection Failed:', error.message);
+    console.error('✗ MySQL Connection Failed:', error.message);
     return false;
   }
 };
 
-// Keep the pool.query signature used everywhere: pool.query(sql, params)
-pool.query = query;
-pool.getConnection = getConnection;
-
-module.exports = { pool, testConnection };
+module.exports = { pool, testConnection, DB_NAME, poolConfig };

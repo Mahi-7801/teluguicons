@@ -1,6 +1,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const http = require('http');
+const { pool } = require('../config/database');
 
 async function testOtpVotingFlow() {
   const app = express();
@@ -62,9 +63,12 @@ async function testOtpVotingFlow() {
     console.log('Vote note:', voteRes.data.message);
   }
 
-  server.close();
-  console.log('\n✓ 100% Backend-Native OTP Flow Verified Successfully!\n');
-  process.exit(0);
+  // Drain the server and the pool before exiting, otherwise libuv tears down
+// still-open handles and aborts with
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)".
+await new Promise((resolve) => server.close(resolve));
+await pool.end();
+console.log('\n✓ 100% Backend-Native OTP Flow Verified Successfully!\n');
 }
 
 testOtpVotingFlow().catch((err) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
+import QrBlock from '../components/QrBlock';
 import { api } from '../api';
 
 const SESSION_LABELS = {
@@ -28,6 +29,7 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [policyAccepted, setPolicyAccepted] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     api.get('/tickets/availability').then((data) => {
@@ -65,6 +67,156 @@ export default function TicketsPage() {
       setLoading(false);
     }
   };
+
+// Capture the QR as a PNG. The PDF embeds this image rather than re-rendering
+  // on the canvas, so the code is always present and crisp at any zoom - and it
+// works offline, unlike QrBlock's remote fallback.
+const buildQrPng = async () => {
+  try {
+    const { default: QRCode } = await import('qrcode');
+    return await QRCode.toDataURL(order.qr_token, {
+      width: 600,
+      margin: 2,
+      errorCorrectionLevel: 'H',
+      color: { dark: '#0a0a0a', light: '#ffffff' },
+    });
+  } catch (_) {
+    return null;
+  }
+};
+
+// jsPDF's built-in fonts are WinAnsi (Latin-1). Anything outside it (emoji,
+// curly quotes, Telugu) throws or renders as black boxes, so transliterate the
+// few glyphs the ticket uses and strip anything still unsupported.
+const toPdfText = (value) => {
+  const map = {
+    '·': '-', '–': '-', '—': '-', '’': "'", '‘': "'",
+    '“': '"', '”': '"', '₹': 'Rs.', '…': '...', ' ': ' ',
+  };
+  let out = String(value == null ? '' : value).replace(/[·–—’‘“”₹…\u00a0]/g, (c) => map[c] || '');
+  // eslint-disable-next-line no-control-regex
+  return out.replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
+};
+
+// Builds a real, self-contained .pdf file and downloads it. Text stays vector
+// (selectable and searchable) and the QR is embedded as an image, so the file
+// prints at any size and needs no network connection to open.
+const downloadTicketPdf = async () => {
+  if (!order) return;
+  setPdfBusy(true);
+  try {
+    const { jsPDF } = await import('jspdf');
+    // compress:true is not optional here - without it jsPDF stores the QR's raw
+// pixel buffer and the file balloons from ~8 KB to ~1.9 MB.
+const doc = new jsPDF({ unit: 'mm', format: 'a5', orientation: 'portrait', compress: true });
+    const s = SESSION_LABELS[order.session] || SESSION_LABELS[1];
+
+    const PAGE_W = doc.internal.pageSize.getWidth();
+    const PAGE_H = doc.internal.pageSize.getHeight();
+    const M = 12;
+    const GOLD = [201, 162, 39];
+    const INK = [17, 17, 17];
+    const MUTED = [110, 110, 110];
+
+    doc.setFillColor(...GOLD);
+    doc.rect(0, 0, PAGE_W, 30, 'F');
+    doc.setTextColor(...INK);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(17);
+    doc.text('TELUGU ICON', PAGE_W / 2, 14, { align: 'center' });
+    doc.setFontSize(9.5);
+    doc.text('Digital & Influencer Awards 2026', PAGE_W / 2, 21.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text('16 November 2026  |  Shilpakala Vedika, Hyderabad', PAGE_W / 2, 26.5, { align: 'center' });
+
+    // QR, centred, in a white plate with a thin frame.
+    const qrPng = await buildQrPng();
+    const QR_SIZE = 62;
+    const qrX = (PAGE_W - QR_SIZE) / 2;
+    const qrY = 38;
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...GOLD);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(qrX - 3, qrY - 3, QR_SIZE + 6, QR_SIZE + 6, 2, 2, 'FD');
+    if (qrPng) {
+      doc.addImage(qrPng, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE);
+    } else {
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineDashPattern([1, 1], 0);
+      doc.rect(qrX, qrY, QR_SIZE, QR_SIZE);
+      doc.setLineDashPattern([], 0);
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text('QR unavailable', PAGE_W / 2, qrY + QR_SIZE / 2, { align: 'center' });
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...INK);
+    doc.text('SCAN AT ENTRY GATE', PAGE_W / 2, qrY + QR_SIZE + 8, { align: 'center' });
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...MUTED);
+    doc.text(toPdfText(order.qr_token).slice(0, 64), PAGE_W / 2, qrY + QR_SIZE + 12.5, { align: 'center' });
+
+    // Detail rows
+    const rows = [
+      ['Order ID', toPdfText(order.order_code), 'courier', ...GOLD],
+      ['Attendee', toPdfText(order.buyer_name), 'helvetica', ...INK],
+      ['Session', toPdfText(`Session ${order.session} - ${s.time}`), 'helvetica', ...INK],
+      ['Ticket', toPdfText(`${TIER_LABELS[order.tier] || order.tier}${order.quantity > 1 ? ` (${order.quantity} persons)` : ''}`), 'helvetica', ...INK],
+      ['Food', toPdfText(s.food), 'helvetica', ...INK],
+      ['Date', '16 November 2026', 'helvetica', ...INK],
+      ['Venue', 'Shilpakala Vedika, Hyderabad', 'helvetica', ...INK],
+    ];
+
+    let y = qrY + QR_SIZE + 20;
+    doc.setDrawColor(226, 226, 226);
+    doc.setLineWidth(0.3);
+    doc.line(M, y, PAGE_W - M, y);
+    y += 6;
+
+    const labelW = 32;
+    const valueX = PAGE_W - M;
+    for (const [label, value, font, r, g, b] of rows) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...MUTED);
+      doc.text(toPdfText(label), M, y);
+
+      doc.setFont(font, 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(r, g, b);
+      // Keep the value on one line: jsPDF does not wrap, so trim to the width.
+      const max = doc.getTextWidth(value);
+      let shown = value;
+      const avail = PAGE_W - M * 2 - labelW;
+      if (max > avail) {
+        while (shown.length > 3 && doc.getTextWidth(`${shown}...`) > avail) shown = shown.slice(0, -1);
+        shown = `${shown}...`;
+      }
+      doc.text(shown, valueX, y, { align: 'right' });
+
+      y += 4;
+      doc.setDrawColor(243, 243, 243);
+      doc.line(M, y - 2.5, PAGE_W - M, y - 2.5);
+      y += 4;
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text('Organised by Pracharam Media. Please present this pass at the entry gate.', PAGE_W / 2, PAGE_H - 12, { align: 'center' });
+    doc.setTextColor(180, 0, 0);
+    doc.text('This pass admits one person per ticket. Re-entry will not be permitted.', PAGE_W / 2, PAGE_H - 7, { align: 'center' });
+
+    doc.save(`${toPdfText(order.order_code) || 'Telugu-Icon-Ticket'}.pdf`);
+  } catch {
+    setError('Could not generate the PDF. Please use Print Ticket instead.');
+  } finally {
+    setPdfBusy(false);
+  }
+};
 
   return (
     <PageTransition>
@@ -191,9 +343,9 @@ export default function TicketsPage() {
                       isSelected ? 'border-champagne-500/60 bg-champagne-500/5 cursor-pointer' : 'cursor-pointer hover:border-champagne-500/30'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
                           <h3 className="font-display text-2xl font-black gold-text">{TIER_LABELS[t.tier]}</h3>
                           <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${ac.cls}`}>{ac.label}</span>
                         </div>
@@ -343,12 +495,16 @@ export default function TicketsPage() {
                   <p className="text-champagne-400 text-sm">Digital &amp; Influencer Awards 2026</p>
                 </div>
                 <div className="bg-white rounded-xl p-4 flex items-center justify-center mb-5">
-                  {/* QR Code placeholder — in production, use qrcode.react or server-generated QR */}
-                  <div className="text-center">
-                    <div className="font-mono text-xs text-ink-900 break-all mb-2 max-w-[200px]">{order.qr_token?.slice(0, 20)}...</div>
-                    <div className="text-4xl">▦</div>
-                    <p className="text-ink-900 text-xs mt-1">Scan at entry gate</p>
-                  </div>
+                  {/* Real, locally-generated QR. It encodes the raw qr_token so
+                      POST /api/tickets/verify-entry works; linkify is off because
+                      a token is not a URL. */}
+                  <QrBlock
+                    value={order.qr_token}
+                    size={200}
+                    label="Scan at entry gate"
+                    showUrl={false}
+                    linkify={false}
+                  />
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-white/50">Order ID</span><span className="text-champagne-400 font-mono font-bold">{order.order_code}</span></div>
@@ -360,9 +516,12 @@ export default function TicketsPage() {
                   <div className="flex justify-between"><span className="text-white/50">Venue</span><span className="text-white">Shilpakala Vedika, Hyderabad</span></div>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+<div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button onClick={downloadTicketPdf} disabled={pdfBusy} className="btn-gold disabled:opacity-40 disabled:cursor-not-allowed">
+                  {pdfBusy ? 'Generating PDF...' : '📄 Download Ticket (PDF)'}
+                </button>
                 <button onClick={() => window.print()} className="btn-outline">🖨️ Print Ticket</button>
-                <a href={`https://wa.me/?text=${encodeURIComponent(`I'm attending the Telugu Icon Digital & Influencer Awards 2026! Session ${order.session} · ${SESSION_LABELS[order.session].time} · Shilpakala Vedika, Hyderabad. Order: ${order.order_code}`)}`} target="_blank" rel="noreferrer" className="btn-gold">Share on WhatsApp</a>
+                <a href={`https://wa.me/?text=${encodeURIComponent(`I'm attending the Telugu Icon Digital & Influencer Awards 2026! Session ${order.session} · ${SESSION_LABELS[order.session].time} · Shilpakala Vedika, Hyderabad. Order: ${order.order_code}`)}`} target="_blank" rel="noopener noreferrer" className="btn-outline">Share on WhatsApp</a>
               </div>
             </div>
           )}

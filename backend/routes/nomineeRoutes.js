@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
                  FROM nominees n JOIN categories c ON n.category_id = c.id WHERE 1=1`;
       const params = [];
       // Accept either a category slug or a numeric category id.
-      if (category) { sql += ' AND (c.slug = ? OR c.id::TEXT = ?)'; params.push(category, String(category)); }
+      if (category) { sql += ' AND (c.slug = ? OR CAST(c.id AS CHAR) = ?)'; params.push(category, String(category)); }
       if (status) { sql += ' AND n.status = ?'; params.push(status); }
       if (featured) { sql += ' AND n.featured = 1'; }
       sql += " AND n.status = 'approved' ORDER BY n.vote_count DESC, n.featured DESC, n.id ASC";
@@ -75,13 +75,13 @@ router.get('/:id', async (req, res) => {
         // Try by numeric ID first, then fall back to slug
         sql = `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.description AS category_description, c.voting_open
                FROM nominees n JOIN categories c ON n.category_id = c.id
-               WHERE (n.id = $1 OR n.slug = $2) AND n.status = 'approved' LIMIT 1`;
+               WHERE (n.id = ? OR n.slug = ?) AND n.status = 'approved' LIMIT 1`;
         params = [parseInt(id, 10), id];
       } else {
         // Slug lookup
         sql = `SELECT n.*, c.name AS category_name, c.slug AS category_slug, c.description AS category_description, c.voting_open
                FROM nominees n JOIN categories c ON n.category_id = c.id
-               WHERE n.slug = $1 AND n.status = 'approved' LIMIT 1`;
+               WHERE n.slug = ? AND n.status = 'approved' LIMIT 1`;
         params = [id];
       }
       const [rows] = await pool.query(sql, params);

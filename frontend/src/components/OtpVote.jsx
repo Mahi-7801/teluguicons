@@ -14,6 +14,21 @@ function getDeviceFingerprint() {
   }
 }
 
+const DUPLICATE_HINTS = [
+  'already voted in this category',
+  'already voted',
+];
+
+const isDuplicateError = (message) =>
+  DUPLICATE_HINTS.some((hint) => String(message || '').toLowerCase().includes(hint));
+
+// The backend is unreachable when fetch itself rejects (API down, wrong port,
+// CORS). That is very different from a rejected vote, so say which it is
+// instead of the old "Network error. Please try again." that told the user
+// nothing about what to actually check.
+const UNREACHABLE =
+  'Cannot reach the voting server. Please check that the backend is running on port 3001, then try again.';
+
 export default function OtpVote({ nominee, onVoted, compact }) {
   const [mode, setMode] = useState('otp'); // 'otp' | 'device'
   const [step, setStep] = useState('details');
@@ -24,8 +39,16 @@ export default function OtpVote({ nominee, onVoted, compact }) {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [duplicateInfo, setDuplicateInfo] = useState(null);
 
   const { phone } = voter;
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const t = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   useEffect(() => {
     api.get('/otp/mode').then((data) => {
@@ -42,6 +65,19 @@ export default function OtpVote({ nominee, onVoted, compact }) {
     }
     setLoading(true);
     try {
+      // Ask the server whether this number has already voted in this category
+      // BEFORE spending an SMS on it. Otherwise a repeat voter receives a real
+      // OTP, types it, waits for verification, and only then gets told the vote
+      // was going to be rejected.
+      if (!resend) {
+        const prior = await api.get(`/votes/check?phone=${encodeURIComponent(voter.phone)}&nominee_id=${nominee.id}`, { force: true });
+        if (prior && prior.already_voted) {
+          setDuplicateInfo(prior);
+          setStep('duplicate');
+          return;
+        }
+      }
+
       const res = await api.post('/otp/send', { mobile: voter.phone });
       if (res.type === 'success') {
         const code = res.dev_otp || res.otp || '';
@@ -49,11 +85,16 @@ export default function OtpVote({ nominee, onVoted, compact }) {
         setOtp(code);
         setMessage(`Verification code generated: ${code}`);
         setStep('otp');
+      } else if (res.httpStatus === 429) {
+        // The server enforces a 10s cooldown per mobile number. Start our own
+        // countdown so the button explains itself instead of looking broken.
+        setCooldown(10);
+        setError(res.message || 'Please wait a few seconds before requesting another code.');
       } else {
         setError(res.message || 'Failed to generate OTP');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      setError(UNREACHABLE);
     } finally {
       setLoading(false);
     }
@@ -76,7 +117,7 @@ export default function OtpVote({ nominee, onVoted, compact }) {
         setError(res.message || 'Verification failed');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      setError(UNREACHABLE);
     } finally {
       setLoading(false);
     }
@@ -97,14 +138,27 @@ export default function OtpVote({ nominee, onVoted, compact }) {
       });
       if (res.httpStatus && res.httpStatus >= 200 && res.httpStatus < 300) {
         setMessage(res.message);
+        setError(null);
         setStep('done');
         if (onVoted) onVoted(res);
       } else {
-        setError(res.message || 'Failed to record vote');
-        setStep('details');
+        const why = res.message || 'Failed to record vote';
+        setError(why);
+        if (isDuplicateError(why)) {
+          // Keep the verified session. Resetting to 'details' used to throw away
+          // the OTP token and every field, so the only way back was a fresh OTP
+          // request - which the server then rejected with "Too many OTP
+          // requests" for 10 seconds. The voter just saw a broken form.
+          // One verified mobile = one vote per category is the rule, so the
+          // honest state is "already voted", not "start over".
+          setDuplicateInfo({ nominee_name: nominee.full_name, category_name: nominee.category_name });
+          setStep('duplicate');
+        } else {
+          setStep(verificationToken ? 'ready' : 'details');
+        }
       }
     } catch (err) {
-      setError(err.message || 'Network error. Please try again.');
+      setError(UNREACHABLE);
     } finally {
       setLoading(false);
     }
@@ -120,7 +174,7 @@ export default function OtpVote({ nominee, onVoted, compact }) {
           {message}
         </div>
       )}
-      {error && (
+      {error && step !== 'duplicate' && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-burgundy-900/50 border border-burgundy-500/40 text-white/80 text-sm">
           {error}
         </div>
@@ -148,6 +202,40 @@ export default function OtpVote({ nominee, onVoted, compact }) {
                 Copy Link
               </button>
             </div>
+          </div>
+        </div>
+      ) : step === 'duplicate' ? (
+        <div className="space-y-4 text-center">
+          <div className="text-4xl mb-1">🗳️</div>
+          <h3 className="font-display text-xl font-bold text-white">Vote Already Recorded</h3>
+          <p className="text-white/60 text-sm">
+            Your number has already voted in
+            {' '}<span className="text-champagne-400 font-semibold">
+              {(duplicateInfo && duplicateInfo.category_name) || nominee.category_name || 'this category'}
+            </span>.
+          </p>
+          <div className="rounded-xl border border-white/10 bg-ink-800 px-4 py-3 text-left text-[13px] text-white/70 space-y-1">
+            <p><span className="text-white/40">Number used:</span> +91 {phone}</p>
+            <p><span className="text-white/40">Already voted for:</span> {(duplicateInfo && duplicateInfo.nominee_name) || nominee.full_name}</p>
+            {duplicateInfo && duplicateInfo.voted_at && (
+              <p><span className="text-white/40">Recorded on:</span> {new Date(duplicateInfo.voted_at).toLocaleString('en-IN')}</p>
+            )}
+            {voter.email && <p><span className="text-white/40">Email entered:</span> {voter.email}</p>}
+          </div>
+          <p className="text-white/40 text-xs">
+            No OTP was sent, because this number has already voted in this category.
+            We block repeats by mobile number, email and device, so a second vote here would
+            be rejected by the server too. You can still vote in other categories.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <a href="/vote" className="btn-gold flex-1 text-center">Vote in another category</a>
+            <button
+              type="button"
+              onClick={() => { setStep('details'); setError(null); setVerificationToken(''); setDuplicateInfo(null); }}
+              className="btn-outline flex-1"
+            >
+              Use a different number
+            </button>
           </div>
         </div>
       ) : (
@@ -191,8 +279,8 @@ export default function OtpVote({ nominee, onVoted, compact }) {
                   {loading ? 'Casting vote...' : `Vote for ${nominee.full_name}`}
                 </button>
               ) : (
-                <button type="submit" disabled={loading} className="btn-gold w-full disabled:opacity-40 disabled:cursor-not-allowed">
-                  {loading ? 'Sending...' : 'Send OTP to Verify'}
+                <button type="submit" disabled={loading || cooldown > 0} className="btn-gold w-full disabled:opacity-40 disabled:cursor-not-allowed">
+                  {loading ? 'Sending...' : cooldown > 0 ? `Please wait ${cooldown}s...` : 'Send OTP to Verify'}
                 </button>
               )}
               <p className="text-white/30 text-xs text-center">
@@ -228,8 +316,8 @@ export default function OtpVote({ nominee, onVoted, compact }) {
                 <button type="submit" disabled={loading || otp.length < 4} className="btn-gold flex-1 disabled:opacity-40 disabled:cursor-not-allowed">
                   {loading ? 'Verifying...' : 'Verify & Continue'}
                 </button>
-                <button type="button" onClick={() => sendOtp(true)} className="btn-outline disabled:opacity-40" disabled={loading}>
-                  Resend
+                <button type="button" onClick={() => sendOtp(true)} className="btn-outline disabled:opacity-40 disabled:cursor-not-allowed" disabled={loading || cooldown > 0}>
+                  {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend'}
                 </button>
               </div>
             </>

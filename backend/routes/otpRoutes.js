@@ -57,7 +57,7 @@ router.post('/verify', async (req, res) => {
     // expires_at is computed server-side so the client's timezone (UTC string ->
     // SYSTEM/IST TIMESTAMP) can never push the token into the past.
     await pool.query(
-      "INSERT INTO otp_sessions (mobile, token_hash, purpose, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '30 minutes')",
+      "INSERT INTO otp_sessions (mobile, token_hash, purpose, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))",
       [normalized, crypto.createHash('sha256').update(token).digest('hex'), 'vote']
     );
 

@@ -109,7 +109,16 @@ router.post('/verify-entry', async (req, res) => {
   try {
     const { qr_token } = req.body;
     if (!qr_token) return res.status(400).json({ message: 'qr_token is required' });
-    const [rows] = await pool.query('SELECT * FROM ticket_orders WHERE qr_token = ?', [qr_token]);
+
+    // The QR encodes the bare token today. Be tolerant if a scanner hands back
+    // a whole URL (or a token with whitespace / tracking appended) instead of
+    // failing an attendee at the gate: pull the 64-hex token out of the string.
+    const scanned = String(qr_token).trim();
+    const token = /^[0-9a-f]{64}$/i.test(scanned)
+      ? scanned
+      : (scanned.match(/[0-9a-f]{64}/i) || [scanned])[0];
+
+    const [rows] = await pool.query('SELECT * FROM ticket_orders WHERE qr_token = ?', [token]);
     if (!rows.length) return res.status(404).json({ valid: false, message: 'Invalid ticket' });
     const order = rows[0];
     if (order.payment_status !== 'paid') return res.json({ valid: false, message: 'Payment not confirmed' });

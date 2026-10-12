@@ -5,11 +5,31 @@ const path = require('path');
 const cluster = require('cluster');
 const os = require('os');
 const zlib = require('zlib');
+const mysql = require('mysql2/promise');
 
-const { testConnection, pool } = require('./config/database');
+const { testConnection, pool, poolConfig } = require('./config/database');
 
 const app = express();
 app.disable('x-powered-by');
+
+// Behind nginx / Cloudflare / Railway / a load balancer, req.ip is the PROXY's
+// socket address unless Express is told to trust the forwarded header. That is
+// not cosmetic: the per-IP vote rate limit and the (ip_address, user_agent)
+// duplicate guard both key off req.ip, so with it unset every visitor on the
+// site looks like one shared IP. The first person to vote in a category would
+// then lock out the entire audience with "already voted in this category", and
+// 20 requests would exhaust the hourly limit for everybody.
+//
+// TRUST_PROXY accepts:  true | 1 | number of proxy hops to trust.
+// Leave it UNSET when the API is exposed directly to the internet, because
+// trusting a client-supplied header when nothing rewrites it would let anyone
+// forge their IP.
+const TRUST_PROXY = process.env.TRUST_PROXY;
+if (TRUST_PROXY === 'true' || TRUST_PROXY === '1') {
+  app.set('trust proxy', true);
+} else if (TRUST_PROXY && /^\d+$/.test(TRUST_PROXY)) {
+  app.set('trust proxy', Number(TRUST_PROXY));
+}
 
 app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
 app.use(express.json({ limit: '5mb' }));
@@ -103,14 +123,41 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001;
 
-// MySQL-only migrations (note: on Supabase the equivalent unique indexes are
-// already created by schema.supabase.sql, so nothing runs here).
-const addKey = async () => {};
+// Every table lives in backend/database/schema.sql and the file is idempotent
+// (CREATE TABLE IF NOT EXISTS + guarded INSERTs), so the server can safely apply
+// it on boot. That keeps a fresh XAMPP install working without a manual step.
 const runMigrations = async () => {
-  console.log('✓ Schema migrations not required on Supabase (created in SQL Editor)');
+  const fs = require('fs');
+  const sql = fs.readFileSync(path.join(__dirname, 'database', 'schema.sql'), 'utf-8');
+  const { database, ...serverLevelConfig } = poolConfig;
+  const conn = await mysql.createConnection({
+    ...serverLevelConfig,
+    multipleStatements: true,
+  });
+  try {
+    await conn.query(sql);
+    console.log('✓ Schema applied (backend/database/schema.sql)');
+  } finally {
+    await conn.end();
+  }
+};
+
+// The pool is created with a database already selected, so a missing database
+// makes every query fail with ER_BAD_DB_ERROR. Create it first, at server level.
+const ensureDatabaseExists = async () => {
+  const { database, ...serverLevelConfig } = poolConfig;
+  const conn = await mysql.createConnection(serverLevelConfig);
+  try {
+    await conn.query(
+      `CREATE DATABASE IF NOT EXISTS \`${database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+    );
+  } finally {
+    await conn.end();
+  }
 };
 
 const ensureDatabase = async () => {
+  await ensureDatabaseExists();
   const connected = await testConnection();
   if (connected) await runMigrations();
   return connected;

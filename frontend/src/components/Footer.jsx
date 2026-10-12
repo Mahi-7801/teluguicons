@@ -7,18 +7,17 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10">
           {/* Brand Col (2 cols on lg) */}
           <div className="lg:col-span-2 space-y-4">
-            <Link to="/" className="flex items-center space-x-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d8b56b] to-[#760000] flex items-center justify-center shadow-lg">
-                <span className="text-[#0b0303] font-black text-sm">TIA</span>
-              </div>
-              <div>
-                <span className="font-serif-luxury text-[#f1d99a] font-bold text-lg leading-tight block">
-                  TELUGU ICON
-                </span>
-                <span className="block text-[#a99888] text-[10px] tracking-[0.2em] uppercase">
-                  Digital & Influencer Awards 2026
-                </span>
-              </div>
+            <Link to="/" className="inline-block">
+              {/* Full lockup including the tagline - there is room for it here. */}
+              <span className="inline-flex items-center justify-center rounded-xl bg-white px-3 py-2 shadow-lg ring-1 ring-[rgba(216,181,107,0.35)]">
+                <img
+                  src="/brand/logo-md.jpg"
+                  alt="Telugu Icon Digital & Influencer Awards 2026"
+                  width="800"
+                  height="267"
+                  className="w-full max-w-[300px] h-auto object-contain select-none"
+                />
+              </span>
             </Link>
 
             <p className="text-[#cdbda9] text-sm leading-relaxed max-w-sm">

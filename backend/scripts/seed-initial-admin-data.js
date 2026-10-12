@@ -1,8 +1,8 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+﻿require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const { pool } = require('../config/database');
 
 async function seed() {
-  console.log('Seeding initial admin data to Supabase...');
+  console.log('Seeding initial admin data to MySQL...');
 
   // 1. Fetch Categories & Nominees to link
   const [cats] = await pool.query('SELECT id, name, slug FROM categories ORDER BY id ASC LIMIT 20');
@@ -16,7 +16,7 @@ async function seed() {
   console.log(`Found ${cats.length} categories, ${noms.length} nominees.`);
 
   // 2. Seed Nominations (Pending, Verified, Shortlisted)
-  const [nomCount] = await pool.query('SELECT COUNT(*)::int AS count FROM nominations');
+  const [nomCount] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM nominations');
   if (nomCount[0].count === 0) {
     console.log('Seeding realistic nominations...');
     const nominationsData = [
@@ -127,7 +127,7 @@ async function seed() {
   }
 
   // 3. Seed Realistic Votes & Audit Stream
-  const [voteCount] = await pool.query('SELECT COUNT(*)::int AS count FROM votes');
+  const [voteCount] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM votes');
   if (voteCount[0].count === 0) {
     console.log('Seeding realistic votes & audit log stream...');
     const sampleVoters = [
@@ -150,7 +150,7 @@ async function seed() {
         INSERT INTO votes (
           nominee_id, category_id, voter_name, voter_email, voter_phone,
           ip_address, user_agent, otp_verified, is_flagged, flag_reason, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW() - INTERVAL '${i * 3} hour')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_SUB(NOW(), INTERVAL ? HOUR))
       `, [
         nominee.id,
         nominee.category_id,
@@ -161,7 +161,8 @@ async function seed() {
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
         v.otp,
         v.flagged,
-        v.reason
+        v.reason,
+        i * 3
       ]);
 
       // Increment nominee vote count
@@ -173,7 +174,7 @@ async function seed() {
   }
 
   // 4. Seed Past Events & Awardees
-  const [eventCount] = await pool.query('SELECT COUNT(*)::int AS count FROM past_events');
+  const [eventCount] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM past_events');
   if (eventCount[0].count === 0) {
     console.log('Seeding past events & awardees...');
     const [res1] = await pool.query(`
@@ -201,7 +202,7 @@ async function seed() {
   }
 
   // 5. Seed Gallery Items & Media Press Releases
-  const [galCount] = await pool.query('SELECT COUNT(*)::int AS count FROM gallery_items');
+  const [galCount] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM gallery_items');
   if (galCount[0].count === 0) {
     console.log('Seeding gallery photos...');
     await pool.query(`
@@ -214,7 +215,7 @@ async function seed() {
     console.log('✓ Seeded gallery photos.');
   }
 
-  const [medCount] = await pool.query('SELECT COUNT(*)::int AS count FROM media_items');
+  const [medCount] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM media_items');
   if (medCount[0].count === 0) {
     console.log('Seeding media releases...');
     await pool.query(`
@@ -227,21 +228,21 @@ async function seed() {
   }
 
   // 6. Seed Forensic Audit Logs
-  const [auditCount] = await pool.query('SELECT COUNT(*)::int AS count FROM audit_logs');
+  const [auditCount] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM audit_logs');
   if (auditCount[0].count === 0) {
     console.log('Seeding audit logs...');
     await pool.query(`
       INSERT INTO audit_logs (admin_id, admin_email, action, entity_type, entity_id, details, ip_address, created_at)
       VALUES 
-      (1, 'admin@teluguiconawards.com', 'PHASE_CHANGE', 'Settings', 1, 'Switched active event lifecycle phase to Phase 2 (Public Voting Live)', '103.24.120.5', NOW() - INTERVAL '2 days'),
-      (1, 'admin@teluguiconawards.com', 'VOTE_FLAGGED', 'Vote', 5, 'Anti-fraud flagged suspicious vote attempt: High velocity subnet', '103.24.120.5', NOW() - INTERVAL '5 hour'),
-      (1, 'admin@teluguiconawards.com', 'NOMINEE_VERIFIED', 'Nominee', 3, 'Nominee profile and direct voting campaign kit approved', '103.24.120.5', NOW() - INTERVAL '1 day')
+      (1, 'admin@teluguiconawards.com', 'PHASE_CHANGE', 'Settings', 1, 'Switched active event lifecycle phase to Phase 2 (Public Voting Live)', '103.24.120.5', DATE_SUB(NOW(), INTERVAL 2 DAY)),
+      (1, 'admin@teluguiconawards.com', 'VOTE_FLAGGED', 'Vote', 5, 'Anti-fraud flagged suspicious vote attempt: High velocity subnet', '103.24.120.5', DATE_SUB(NOW(), INTERVAL 5 HOUR)),
+      (1, 'admin@teluguiconawards.com', 'NOMINEE_VERIFIED', 'Nominee', 3, 'Nominee profile and direct voting campaign kit approved', '103.24.120.5', DATE_SUB(NOW(), INTERVAL 1 DAY))
     `);
     console.log('✓ Seeded audit logs.');
   }
 
   console.log('\n==============================================');
-  console.log('✓ ALL ADMIN DATA SEEDED SUCCESSFULLY TO SUPABASE!');
+  console.log('✓ ALL ADMIN DATA SEEDED SUCCESSFULLY TO MYSQL!');
   console.log('==============================================');
   process.exit(0);
 }

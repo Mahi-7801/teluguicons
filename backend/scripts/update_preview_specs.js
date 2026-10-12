@@ -18,7 +18,7 @@ async function run() {
   for (const cat of newCats) {
     try {
       await pool.query(
-        "INSERT INTO categories (name, slug, type, description, icon, sort_order, voting_open) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description",
+        "INSERT INTO categories (name, slug, type, description, icon, sort_order, voting_open) VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description)",
         cat
       );
     } catch (e) {
@@ -41,7 +41,7 @@ async function run() {
   for (const [key, val] of settingsToUpdate) {
     try {
       await pool.query(
-        "INSERT INTO settings (setting_key, setting_value, group_name) VALUES (?, ?, 'general') ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value",
+        "INSERT INTO settings (setting_key, setting_value, group_name) VALUES (?, ?, 'general') ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)",
         [key, val]
       );
     } catch (e) {
@@ -49,9 +49,10 @@ async function run() {
     }
   }
 
-  const [countRes] = await pool.query("SELECT type, count(*) as count FROM categories GROUP BY type");
+  const [countRes] = await pool.query("SELECT type, CAST(COUNT(*) AS SIGNED) AS count FROM categories GROUP BY type");
   console.log('Category Counts:', countRes);
   console.log('Finished updating database!');
+  await pool.end();
 }
 
 run().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });

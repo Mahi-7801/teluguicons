@@ -59,6 +59,8 @@ const lastTenDigits = (value) => {
   return digits.length >= 10 ? digits.slice(-10) : null;
 };
 
+const normalizeName = (value) => String(value || '').trim().toLowerCase();
+
 router.post('/send', async (req, res) => {
   try {
     if (rateLimited(clientIp(req))) {
@@ -82,8 +84,8 @@ router.post('/verify', async (req, res) => {
       [normalized]
     );
     await pool.query(
-      "INSERT INTO otp_sessions (mobile, token_hash, purpose, expires_at) VALUES (?, ?, ?, NOW() + (? || ' minutes')::INTERVAL)",
-      [normalized, crypto.createHash('sha256').update(token).digest('hex'), 'nomination_status', String(TOKEN_MINUTES)]
+      "INSERT INTO otp_sessions (mobile, token_hash, purpose, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))",
+      [normalized, crypto.createHash('sha256').update(token).digest('hex'), 'nomination_status', TOKEN_MINUTES]
     );
 
     res.json({
@@ -123,16 +125,11 @@ router.post('/lookup', async (req, res) => {
     if (!digits) return res.status(400).json({ message: 'Please verify a valid 10-digit mobile number.' });
 
     // A nomination can produce a nominee either through nomination_id or, for
-    // rows promoted before that column existed, by name + category.
+    // rows promoted before that column existed, by name + category. MySQL has no
+    // LATERAL join, so the candidates are fetched once and matched in memory.
     const [rows] = await pool.query(
-      `SELECT nm.id AS nominee_id,
-              nm.full_name AS nominee_name,
-              nm.slug AS nominee_slug,
-              nm.nominee_code,
-              nm.photo_url AS nominee_photo,
-              nm.vote_count,
-              nm.status AS nominee_status,
-              nom.id AS nomination_id,
+      `SELECT nom.id AS nomination_id,
+              nom.category_id,
               nom.nomination_code,
               nom.full_name AS applicant_name,
               nom.creator_name,
@@ -142,16 +139,7 @@ router.post('/lookup', async (req, res) => {
               c.voting_open
          FROM nominations nom
          JOIN categories c ON c.id = nom.category_id
-         LEFT JOIN LATERAL (
-              SELECT n.id, n.full_name, n.slug, n.nominee_code, n.photo_url, n.vote_count, n.status
-                FROM nominees n
-               WHERE n.nomination_id = nom.id
-                  OR (LOWER(n.full_name) = LOWER(COALESCE(nom.creator_name, nom.full_name))
-                      AND n.category_id = nom.category_id)
-               ORDER BY n.nomination_id = nom.id DESC, n.id ASC
-               LIMIT 1
-         ) nm ON TRUE
-        WHERE RIGHT(REGEXP_REPLACE(COALESCE(nom.phone, ''), '\\D', '', 'g'), 10) = ?
+        WHERE RIGHT(REGEXP_REPLACE(COALESCE(nom.phone, ''), '[^0-9]', ''), 10) = ?
         ORDER BY nom.id DESC
         LIMIT 20`,
       [digits]
@@ -164,8 +152,48 @@ router.post('/lookup', async (req, res) => {
       });
     }
 
-    const nominations = rows.map((row) => {
-      const isLive = Boolean(row.nominee_id) && ['approved'].includes(String(row.nominee_status));
+    const nomineeByNominationId = new Map();
+    const nomineeByNameAndCategory = new Map();
+
+    const nominationIds = rows.map((r) => r.nomination_id);
+    const nameKeys = [...new Set(rows.map((r) => normalizeName(r.creator_name || r.applicant_name)).filter(Boolean))];
+
+    if (nominationIds.length > 0) {
+      const [linked] = await pool.query(
+        `SELECT id, nomination_id, full_name, category_id, slug, nominee_code, photo_url, vote_count, status
+           FROM nominees
+          WHERE nomination_id IN (${nominationIds.map(() => '?').join(',')})
+          ORDER BY id ASC`,
+        nominationIds
+      );
+      for (const nominee of linked) {
+        if (!nomineeByNominationId.has(nominee.nomination_id)) nomineeByNominationId.set(nominee.nomination_id, nominee);
+      }
+    }
+
+    if (nameKeys.length > 0) {
+      const [byName] = await pool.query(
+        `SELECT id, nomination_id, full_name, category_id, slug, nominee_code, photo_url, vote_count, status
+           FROM nominees
+          WHERE LOWER(TRIM(full_name)) IN (${nameKeys.map(() => '?').join(',')})
+          ORDER BY id ASC`,
+        nameKeys
+      );
+      for (const nominee of byName) {
+        const key = `${nominee.category_id}|${normalizeName(nominee.full_name)}`;
+        if (!nomineeByNameAndCategory.has(key)) nomineeByNameAndCategory.set(key, nominee);
+      }
+    }
+
+    const matched = rows.map((row) => {
+      const byId = nomineeByNominationId.get(row.nomination_id)
+        || nomineeByNameAndCategory.get(`${row.category_id}|${normalizeName(row.creator_name || row.applicant_name)}`);
+      return { ...row, nominee: byId || null };
+    });
+
+    const nominations = matched.map((row) => {
+      const nominee = row.nominee;
+      const isLive = Boolean(nominee) && String(nominee.status) === 'approved';
       const approved = ['shortlisted', 'verified'].includes(row.nomination_status);
 
       // Never promise a kit that isn't live. A nomination can be approved
@@ -198,13 +226,13 @@ router.post('/lookup', async (req, res) => {
         status: { key: row.nomination_status, ...status },
         campaign: isLive
           ? {
-            nominee_name: row.nominee_name,
-            nominee_slug: row.nominee_slug,
-            nominee_code: row.nominee_code,
-            photo_url: row.nominee_photo,
-            vote_count: Number(row.vote_count || 0),
+            nominee_name: nominee.full_name,
+            nominee_slug: nominee.slug,
+            nominee_code: nominee.nominee_code,
+            photo_url: nominee.photo_url,
+            vote_count: Number(nominee.vote_count || 0),
             voting_open: Number(row.voting_open) === 1,
-            kit_url: `/nominee-kit?nominee=${row.nominee_slug}`,
+            kit_url: `/nominee-kit?nominee=${nominee.slug}`,
           }
           : null,
       };

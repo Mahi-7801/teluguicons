@@ -12,8 +12,9 @@ aibuild/
 │       └── pages/admin/  # Admin Login + Dashboard (7 management tabs)
 ├── backend/           # Node.js + Express + MySQL
 │   ├── routes/        # REST API routes
-│   ├── config/        # MySQL connection (port 3307)
-│   ├── database/      # schema.sql (full DB schema + seed data)
+│   ├── config/        # MySQL connection pool (port 3307)
+│   ├── database/      # schema.sql — all 23 tables + seed data (MySQL/MariaDB)
+│   ├── scripts/       # setup-database.js, seed + audit tools
 │   └── uploads/       # Nomination photo uploads
 ├── start-backend.bat  # Start API server
 └── start-frontend.bat # Start React dev server
@@ -119,23 +120,28 @@ kit and a campaign dashboard. Voting rules are unchanged: **one verified mobile
 = one vote per category**, OTP enforced, anti-fraud and duplicate protection all
 still enforced server-side.
 
-### 1. Run the database migration (required once)
+### 1. Run the database schema (required once)
 
-Supabase → SQL Editor → New query. Run in this order:
+Everything is in a **single idempotent file** — `backend/database/schema.sql` —
+covering all 23 tables plus the seed data (admin, 50 categories, settings,
+tickets, past events, sponsor slots, `TIC26-#####` code counter).
 
-| Order | File | What it does |
-|---|---|---|
-| 1 | `backend/database/migration-nominee-pages.sql` | `TIC26-#####` sequence, achievements/social columns, `nominee_campaign_events`, `sponsor_slots` |
-| 2 | `backend/database/migration-nominee-pages-backfill.sql` | **Optional, one-time.** Cleans up existing slugs and assigns `TIC26-00001…` codes |
+| How | Command |
+|---|---|
+| Automatic | Just start the backend — it creates the database and applies the schema on boot |
+| Manual | `cd backend && npm run db:setup` |
+| phpMyAdmin / import | Import `backend/database/schema.sql` |
 
-> ⚠️ Step 2 **changes public URLs** (`ananya-nagalla-k3f9a2` → `ananya-nagalla`).
-> Only run it **before** any nominee link, poster, QR code or video has been
-> distributed. After that, printed material breaks. To keep existing URLs, comment
-> out STEP 2 in that file — steps 1 and 3 are always safe.
+There is nothing else to run. The API degrades gracefully if the schema has not
+been applied yet: nominee pages, voting and the admin directory still work, you
+just don't get `TIC26-` codes, achievements/social link fields, or analytics.
 
-The API degrades gracefully if the migration has not been run: nominee pages,
-voting and the admin directory all work, you just don't get `TIC26-` codes,
-achievements/social link fields, or analytics.
+Nominee `TIC26-#####` codes come from the `code_counters` table (MySQL has no
+sequences), incremented atomically so concurrent inserts can never collide.
+
+> ⚠️ If you ever need to rewrite existing nominee slugs (`ananya-nagalla-k3f9a2` →
+> `ananya-nagalla`), do it **before** any nominee link, poster, QR code or video
+> has been distributed. After that, printed material breaks.
 
 ### 2. Environment variables
 
@@ -233,7 +239,7 @@ printed on posters, QR codes and videos.
 
 ### 7. Before the 10 October launch checklist
 
-- [ ] Run both migrations
+- [x] Apply `backend/database/schema.sql` (auto on boot, or `npm run db:setup`)
 - [ ] Confirm a shared WhatsApp link previews with the nominee's **name, category and photo** (not the generic site title)
 - [ ] Download one poster per nominee — verify the QR scans into the **correct** nominee page
 - [ ] Flip `voting_open` on categories deliberately; there is no automatic date gate
@@ -242,16 +248,35 @@ printed on posters, QR codes and videos.
 ---
 
 ## 🗄️ Database Tables
-`users`, `categories`, `nominees`, `nominations`, `votes`, `sponsors`, `settings`, `contact_messages`,
-`nominee_campaign_events`, `sponsor_slots`
+`users`, `categories`, `nominations`, `nominees`, `otp_sessions`, `votes`,
+`sponsors`, `settings`, `contact_messages`, `sms_senders`, `sms_templates`,
+`tickets`, `ticket_orders`, `past_events`, `awardees`, `gallery_items`,
+`media_items`, `video_items`, `sponsor_leads`, `audit_logs`,
+`nominee_campaign_events`, `sponsor_slots`, `code_counters`
 
-Seeded: 1 admin, 50 categories (10 curated + 40 people's choice), 2 featured nomnees, 1 sponsor, site settings.
+Seeded: 1 admin, 50 categories (10 curated + 40 people's choice), 4 ticket tiers,
+2 past events, 3 sponsor slots, 16 site settings, 1 sponsor, 1 SMS sender ID.
+
+To fill the admin panel with realistic preview data (nominees, votes, audit
+logs, media releases):
+
+```bash
+cd backend && node scripts/seed-initial-admin-data.js
+```
+
+### Verifying the migration
+```bash
+cd backend
+node scripts/test-live-apis.js        # direct DB round-trips
+node scripts/audit_endpoints.js       # 34 endpoint checks against a running API
+node scripts/smoke-test-mysql.js      # 83 end-to-end checks (API must be on :3001)
+```
 
 ---
 
 ## Troubleshooting
-- **Unknowndatabase** → Restart backend; it auto-creates tables (or import schema.sql manually).
-- **Port 3307 refused** → Ensure XAMPP MySQL is running and configured for 3307.
+- **Unknown database 'telugu_icon_awards'** → Restart the backend; it auto-creates it, or run `npm run db:setup`.
+- **Port 3307 refused** → Ensure XAMPP MySQL is running and configured for 3307. Check `C:\xampp\mysql\bin\my.ini`.
 - **API on different port** → Edit `backend/.env` (`PORT`, `DB_PORT`).
 
 ---

@@ -32,7 +32,7 @@ router.post('/senders', async (req, res) => {
     );
     res.status(201).json({ message: 'Sender ID added', id: result.insertId });
   } catch (error) {
-    if (error.code === '23505') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ message: 'This Sender ID already exists' });
     }
     res.status(500).json({ message: error.message });

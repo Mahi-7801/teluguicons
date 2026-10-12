@@ -43,15 +43,15 @@ router.post('/upload', upload.single('image'), (req, res) => {
 
 router.get('/stats', async (req, res) => {
   try {
-    const [totalNominations] = await pool.query('SELECT COUNT(*)::int AS count FROM nominations');
-    const [pendingNominations] = await pool.query("SELECT COUNT(*)::int AS count FROM nominations WHERE status = 'pending'");
-    const [approvedNominations] = await pool.query("SELECT COUNT(*)::int AS count FROM nominations WHERE status = 'shortlisted'");
-    const [verifiedNominations] = await pool.query("SELECT COUNT(*)::int AS count FROM nominations WHERE status = 'verified'");
-    const [totalVotes] = await pool.query('SELECT COUNT(*)::int AS count FROM votes');
-    const [flaggedVotes] = await pool.query('SELECT COUNT(*)::int AS count FROM votes WHERE is_flagged = 1');
-    const [totalNominees] = await pool.query('SELECT COUNT(*)::int AS count FROM nominees');
-    const [totalCategories] = await pool.query('SELECT COUNT(*)::int AS count FROM categories');
-    const [totalSponsors] = await pool.query('SELECT COUNT(*)::int AS count FROM sponsors');
+    const [totalNominations] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM nominations');
+    const [pendingNominations] = await pool.query("SELECT CAST(COUNT(*) AS SIGNED) AS count FROM nominations WHERE status = 'pending'");
+    const [approvedNominations] = await pool.query("SELECT CAST(COUNT(*) AS SIGNED) AS count FROM nominations WHERE status = 'shortlisted'");
+    const [verifiedNominations] = await pool.query("SELECT CAST(COUNT(*) AS SIGNED) AS count FROM nominations WHERE status = 'verified'");
+    const [totalVotes] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM votes');
+    const [flaggedVotes] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM votes WHERE is_flagged = 1');
+    const [totalNominees] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM nominees');
+    const [totalCategories] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM categories');
+    const [totalSponsors] = await pool.query('SELECT CAST(COUNT(*) AS SIGNED) AS count FROM sponsors');
     const [recentVotes] = await pool.query(
       `SELECT v.id, v.voter_name, v.voter_email, v.created_at, v.is_flagged, n.full_name AS nominee_name
        FROM votes v JOIN nominees n ON v.nominee_id = n.id
@@ -224,10 +224,10 @@ router.get('/nominees', async (req, res) => {
     const analyticsJoin = `
        LEFT JOIN (
          SELECT nominee_id,
-                COUNT(*) FILTER (WHERE event_type = 'page_view')    AS views,
-                COUNT(*) FILTER (WHERE event_type = 'vote_click')  AS vote_clicks,
-                COUNT(*) FILTER (WHERE event_type = 'share_click') AS share_clicks,
-                COUNT(*) FILTER (WHERE event_type = 'qr_scan')     AS qr_scans
+                SUM(CASE WHEN event_type = 'page_view'    THEN 1 ELSE 0 END) AS views,
+                SUM(CASE WHEN event_type = 'vote_click'  THEN 1 ELSE 0 END) AS vote_clicks,
+                SUM(CASE WHEN event_type = 'share_click' THEN 1 ELSE 0 END) AS share_clicks,
+                SUM(CASE WHEN event_type = 'qr_scan'     THEN 1 ELSE 0 END) AS qr_scans
            FROM nominee_campaign_events
           GROUP BY nominee_id
        ) ev ON ev.nominee_id = n.id`;
@@ -236,10 +236,10 @@ router.get('/nominees', async (req, res) => {
               n.featured, n.status, n.nominee_code, n.vote_count,
               c.name AS category_name, c.slug AS category_slug, c.voting_open${selectExtras}`;
     const analyticsSelect = `,
-              COALESCE(ev.views, 0)::int AS page_views,
-              COALESCE(ev.vote_clicks, 0)::int AS vote_clicks,
-              COALESCE(ev.share_clicks, 0)::int AS share_clicks,
-              COALESCE(ev.qr_scans, 0)::int AS qr_scans`;
+              CAST(COALESCE(ev.views, 0) AS SIGNED) AS page_views,
+              CAST(COALESCE(ev.vote_clicks, 0) AS SIGNED) AS vote_clicks,
+              CAST(COALESCE(ev.share_clicks, 0) AS SIGNED) AS share_clicks,
+              CAST(COALESCE(ev.qr_scans, 0) AS SIGNED) AS qr_scans`;
 
     let rows;
     try {
@@ -252,7 +252,7 @@ router.get('/nominees', async (req, res) => {
       );
     } catch (queryError) {
       // Analytics table not created yet - still serve the directory.
-      if (queryError.code !== '42P01') throw queryError;
+      if (queryError.code !== 'ER_NO_SUCH_TABLE') throw queryError;
       [rows] = await pool.query(
         `${baseSelect}
        FROM nominees n
@@ -282,26 +282,34 @@ router.get('/nominees/:id/campaign', async (req, res) => {
 
     const [totals] = await pool.query(
       `SELECT
-         COUNT(*) FILTER (WHERE event_type = 'page_view')    AS page_views,
-         COUNT(*) FILTER (WHERE event_type = 'vote_click')  AS vote_clicks,
-         COUNT(*) FILTER (WHERE event_type = 'share_click') AS share_clicks,
-         COUNT(*) FILTER (WHERE event_type = 'qr_scan')     AS qr_scans,
-         COUNT(*) FILTER (WHERE event_type = 'poster_download') AS poster_downloads,
-         COUNT(*) FILTER (WHERE event_type = 'qr_download')     AS qr_downloads
+         SUM(CASE WHEN event_type = 'page_view'    THEN 1 ELSE 0 END) AS page_views,
+         SUM(CASE WHEN event_type = 'vote_click'  THEN 1 ELSE 0 END) AS vote_clicks,
+         SUM(CASE WHEN event_type = 'share_click' THEN 1 ELSE 0 END) AS share_clicks,
+         SUM(CASE WHEN event_type = 'qr_scan'     THEN 1 ELSE 0 END) AS qr_scans,
+         SUM(CASE WHEN event_type = 'poster_download' THEN 1 ELSE 0 END) AS poster_downloads,
+         SUM(CASE WHEN event_type = 'qr_download'     THEN 1 ELSE 0 END) AS qr_downloads
        FROM nominee_campaign_events
        WHERE nominee_id = ?`,
       [id]
     );
 
+    // MySQL has no generate_series(): build the 14-day window from a recursive
+    // CTE of day offsets and left-join the events onto each one.
     const [timeseries] = await pool.query(
-      `SELECT to_char(d.day, 'YYYY-MM-DD') AS day,
-              COUNT(e.id) FILTER (WHERE e.event_type = 'page_view')   AS views,
-              COUNT(e.id) FILTER (WHERE e.event_type = 'vote_click') AS vote_clicks
-         FROM generate_series(NOW() - INTERVAL '13 days', NOW(), INTERVAL '1 day') AS d(day)
+      `WITH RECURSIVE days AS (
+         SELECT 0 AS n
+         UNION ALL
+         SELECT n + 1 FROM days WHERE n < 13
+       )
+       SELECT DATE_FORMAT(CURDATE() - INTERVAL d.n DAY, '%Y-%m-%d') AS day,
+              CAST(COALESCE(SUM(CASE WHEN e.event_type = 'page_view'   THEN 1 ELSE 0 END), 0) AS SIGNED) AS views,
+              CAST(COALESCE(SUM(CASE WHEN e.event_type = 'vote_click' THEN 1 ELSE 0 END), 0) AS SIGNED) AS vote_clicks
+         FROM days d
          LEFT JOIN nominee_campaign_events e
-           ON e.nominee_id = ? AND e.created_at >= d.day AND e.created_at < d.day + INTERVAL '1 day'
-        GROUP BY d.day
-        ORDER BY d.day ASC`,
+           ON e.nominee_id = ?
+          AND DATE(e.created_at) = CURDATE() - INTERVAL d.n DAY
+        GROUP BY d.n
+        ORDER BY d.n ASC`,
       [id]
     );
 
@@ -314,7 +322,7 @@ router.get('/nominees/:id/campaign', async (req, res) => {
       timeseries,
     });
   } catch (error) {
-    if (error && error.code === '42P01') {
+    if (error && error.code === 'ER_NO_SUCH_TABLE') {
       return res.status(503).json({ message: 'Run migration-nominee-pages.sql to enable campaign analytics' });
     }
     res.status(500).json({ message: error.message });
@@ -535,7 +543,7 @@ router.put('/settings', async (req, res) => {
     const settings = req.body;
     for (const [key, value] of Object.entries(settings)) {
       await pool.query(
-        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value',
+        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
         [key, String(value)]
       );
     }
@@ -570,10 +578,10 @@ router.get('/tickets', async (req, res) => {
     const [orders] = await pool.query('SELECT * FROM ticket_orders ORDER BY id DESC LIMIT 300');
     const [stats] = await pool.query(`
       SELECT 
-        COUNT(*)::int AS total_orders,
-        COALESCE(SUM(quantity), 0)::int AS total_attendees,
-        COALESCE(SUM(price_paisa), 0)::bigint AS total_revenue_paisa,
-        COALESCE(SUM(is_checked_in), 0)::int AS total_checked_in
+        CAST(COUNT(*) AS SIGNED) AS total_orders,
+        CAST(COALESCE(SUM(quantity), 0) AS SIGNED) AS total_attendees,
+        CAST(COALESCE(SUM(price_paisa), 0) AS SIGNED) AS total_revenue_paisa,
+        CAST(COALESCE(SUM(is_checked_in), 0) AS SIGNED) AS total_checked_in
       FROM ticket_orders WHERE payment_status = 'paid'
     `);
     res.json({
@@ -891,7 +899,7 @@ router.put('/event-phase', async (req, res) => {
     await pool.query(
       `INSERT INTO settings (setting_key, setting_value, group_name)
        VALUES ('event_phase', ?, 'event')
-       ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value`,
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
       [phase]
     );
     res.json({ message: `Event phase switched to ${phase}`, phase });
