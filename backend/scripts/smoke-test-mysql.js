@@ -205,6 +205,11 @@ async function main() {
   }
 
   console.log('\n-- sms template duplicate handling (ER_DUP_ENTRY) --');
+  // Clean first so re-runs are isolated: a leftover SMOKE id from a previous
+  // run would make the create return 409 and read as a false failure.
+  const existing = await call('GET', '/api/admin/sms-templates/senders');
+  const stale = Array.isArray(existing.data) && existing.data.find((s) => s.sender_id === 'SMOKE');
+  if (stale) await call('DELETE', `/api/admin/sms-templates/senders/${stale.id}`);
   check('POST /api/admin/sms-templates/senders', await call('POST', '/api/admin/sms-templates/senders', { sender_id: 'SMOKE', name: 'Smoke' }));
   checkStatus('POST /api/admin/sms-templates/senders (dup -> 409)', await call('POST', '/api/admin/sms-templates/senders', { sender_id: 'SMOKE', name: 'Smoke' }), 409);
 
@@ -225,22 +230,46 @@ async function main() {
       verification_token: verificationToken,
       device_fingerprint: 'smoke-device-1',
     };
-    check('POST /api/votes', await call('POST', '/api/votes', voteBody, { noAuth: true }));
+check('POST /api/votes', await call('POST', '/api/votes', voteBody, { noAuth: true }));
     checkStatus('POST /api/votes (same phone again -> 400)', await call('POST', '/api/votes', voteBody, { noAuth: true }), 400);
+
+    // nominees.vote_count is a batched cache (see utils/voteCounter.js) flushed
+    // once a second, so poll for it instead of asserting immediately - otherwise
+    // this check races the flusher and fails intermittently.
+    const readVoteCount = async (id) => {
+      for (let i = 0; i < 20; i += 1) {
+        const rows = await call('GET', '/api/admin/nominees');
+        const found = Array.isArray(rows.data) && rows.data.find((n) => n.id === id);
+        if (found && Number(found.vote_count) > 0) return Number(found.vote_count);
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      return 0;
+    };
+
     const afterVote = check('GET /api/admin/nominees (vote_count incremented)', await call('GET', '/api/admin/nominees'));
-    const voted = Array.isArray(afterVote) && afterVote.find((n) => n.id === campaignTarget);
-    console.log(`  .... vote_count now ${voted && voted.vote_count}`);
-    if (!voted || Number(voted.vote_count) !== 1) failures.push({ label: 'vote_count is 1 after one vote', status: 0, data: voted && voted.vote_count });
+    const voted = Array.isArray(afterVote.data) && afterVote.data.find((n) => n.id === campaignTarget);
+    const liveCount = await readVoteCount(campaignTarget);
+    console.log(`  .... vote_count now ${liveCount}`);
+    if (liveCount !== 1) failures.push({ label: 'vote_count is 1 after one vote', status: 0, data: liveCount });
+    void voted;
 
     const votes = check('GET /api/admin/votes', await call('GET', '/api/admin/votes'));
     const voteRow = Array.isArray(votes) && votes[0];
     if (voteRow && voteRow.id) {
       check(`PUT /api/admin/votes/${voteRow.id}/flag`, await call('PUT', `/api/admin/votes/${voteRow.id}/flag`, { is_flagged: true, flag_reason: 'smoke' }));
-      check(`DELETE /api/admin/votes/${voteRow.id} (vote_count decremented)`, await call('DELETE', `/api/admin/votes/${voteRow.id}`));
-      const afterDelete = check('GET /api/admin/nominees (vote_count back to 0)', await call('GET', '/api/admin/nominees'));
-      const cleaned = Array.isArray(afterDelete) && afterDelete.find((n) => n.id === campaignTarget);
-      console.log(`  .... vote_count now ${cleaned && cleaned.vote_count}`);
-      if (cleaned && Number(cleaned.vote_count) !== 0) failures.push({ label: 'vote_count back to 0 after delete', status: 0, data: cleaned.vote_count });
+check(`DELETE /api/admin/votes/${voteRow.id} (vote_count decremented)`, await call('DELETE', `/api/admin/votes/${voteRow.id}`));
+      // The delete path decrements immediately, but a queued counter flush could
+      // still be in flight, so poll for it to settle back to 0.
+      let settled = -1;
+      for (let i = 0; i < 20; i += 1) {
+        await new Promise((r) => setTimeout(r, 250));
+        const rows = await call('GET', '/api/admin/nominees');
+        const cleaned = Array.isArray(rows.data) && rows.data.find((n) => n.id === campaignTarget);
+        settled = cleaned ? Number(cleaned.vote_count) : -1;
+        if (settled === 0) break;
+      }
+      console.log(`  .... vote_count now ${settled}`);
+      if (settled !== 0) failures.push({ label: 'vote_count back to 0 after delete', status: 0, data: settled });
     }
   }
 

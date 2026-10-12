@@ -474,7 +474,12 @@ router.delete('/votes/:id', async (req, res) => {
     if (rows.length > 0) {
       const nomineeId = rows[0].nominee_id;
       await pool.query('DELETE FROM votes WHERE id = ?', [req.params.id]);
-      await pool.query('UPDATE nominees SET vote_count = GREATEST(0, vote_count - 1) WHERE id = ?', [nomineeId]);
+      // GREATEST(0, vote_count - 1) does NOT protect this column: MySQL
+      // evaluates `vote_count - 1` first, and on an UNSIGNED column a 0
+      // underflows and raises "BIGINT UNSIGNED value is out of range". IF() is
+      // short-circuiting, so the decrement is only ever evaluated when the
+      // counter is genuinely above zero.
+      await pool.query('UPDATE nominees SET vote_count = IF(vote_count > 0, vote_count - 1, 0) WHERE id = ?', [nomineeId]);
     }
     res.json({ message: 'Vote deleted and vote count updated' });
   } catch (error) {

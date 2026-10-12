@@ -8,6 +8,11 @@ const zlib = require('zlib');
 const mysql = require('mysql2/promise');
 
 const { testConnection, pool, poolConfig } = require('./config/database');
+const voteCounter = require('./utils/voteCounter');
+
+// Flush queued vote counters once a second per nominee instead of writing that
+// row on every vote - see utils/voteCounter.js for the measured reason.
+voteCounter.startAutoFlush(pool);
 
 const app = express();
 app.disable('x-powered-by');
@@ -214,6 +219,11 @@ process.on('unhandledRejection', (err) => {
 
 const shutdown = async (code) => {
   console.log('Shutting down gracefully...');
+  // Persist any vote counters still queued in memory before closing the pool.
+  try {
+    const { flushed, nominees } = await voteCounter.flush(pool);
+    if (flushed > 0) console.log(`✓ Flushed ${flushed} vote(s) across ${nominees} nominee(s)`);
+  } catch (e) { console.error('Counter flush on shutdown failed:', e.message); }
   try { await pool.end(); } catch (e) {}
   process.exit(code);
 };
