@@ -303,6 +303,112 @@ yourself with `node scripts/load-test.js`.
 Tested on 6-core / 15 GB / MariaDB 10.4. **Reads hold to 2000 concurrent with
 zero errors. Voting knee is ~1000 concurrent — past that latency passes 1.5 s.**
 
+> Those vote figures are **before** the `vote_count` optimisation described
+> next. The optimisation removed the lock stalls and drove failures to zero, but
+> the throughput figure above has not been re-measured across enough runs to
+> claim an improvement. Treat ~600–1200 votes/s as the realistic range.
+
+### 🔧 The vote-count lock problem (fixed — and how to go further)
+
+This is the single most important performance detail in the voting path. It was
+found by load testing, not by reading the code, and it is worth understanding
+before you change anything here.
+
+#### The bug
+
+The original vote transaction was:
+
+```sql
+BEGIN;
+INSERT INTO votes (...);                              -- FK -> nominees(id)
+UPDATE nominees SET vote_count = vote_count + 1 ...;  -- same row!
+COMMIT;
+```
+
+`votes.nominee_id` is a **foreign key** to `nominees.id`. So every `INSERT`
+makes InnoDB take a **shared lock** on that nominee row and hold it until the
+transaction commits. The `UPDATE` then needs an **exclusive lock** on the very
+row it already holds a shared lock on.
+
+Two votes for the same nominee both hold S, both want X, neither can be
+granted — **deadlock**. Measured at 1000 concurrent voters:
+
+```
+Innodb_row_lock_waits        10,653      <-- 0.66 lock waits per vote
+Innodb_row_lock_time_max       218 ms
+Max_used_connections            11      <-- pool limit is 10: NOT connection-bound
+```
+
+That is also why adding cluster workers did nothing (1193 → 1164 votes/s): the
+wait was **in the database**, not in Node. More servers cannot fix a row lock.
+
+#### The fix
+
+`vote_count` is now a **batched cache**, not part of the transaction:
+
+1. The vote transaction contains only the `INSERT`. It touches no row anyone
+   else writes, so it scales horizontally with no shared-row contention.
+2. `backend/utils/voteCounter.js` counts votes **in memory** and flushes once a
+   second as **one `UPDATE` per nominee** — roughly 50 writes a minute instead
+   of one per vote.
+3. `backend/scripts/recount-votes.js` rebuilds any counter that drifted.
+
+```bash
+node scripts/recount-votes.js           # dry run: report differences
+node scripts/recount-votes.js --apply   # write the corrected counts
+```
+
+Result:
+
+| | Before | After |
+|---|---|---|
+| Lock waits per vote | 0.66 | **0.0015** (440x fewer) |
+| Failed votes | 0.07% | **0%** |
+| Writes to the hot row | 1 per vote | ~1 per nominee per second |
+
+**`votes` remains the source of truth.** The counter is only a cache, so a
+process killed between a commit and a flush loses a *count*, never a *vote* —
+and the recount script repairs it. Run it after any bulk edit or data import.
+
+#### Going further — the next two bottlenecks
+
+After the lock fix, voting is limited by these instead. Both are small changes:
+
+**1. Drop the redundant duplicate pre-check.** Every vote currently runs this
+before the insert:
+
+```sql
+SELECT voter_phone, voter_email, device_fingerprint
+  FROM votes
+ WHERE category_id = ?
+   AND (voter_phone = ? OR voter_email = ? OR device_fingerprint = ?
+        OR (ip_address = ? AND user_agent = ?))
+ LIMIT 1
+```
+
+A 4-way `OR` across four different columns, which gets slower as `votes`
+grows and **cannot use a single index**. It is also **not needed for
+correctness** — the unique keys already reject duplicates atomically inside the
+insert. Keep it only for the friendlier error message; a single indexed lookup
+on the primary identifier (phone or email) gives the same UX for a fraction of
+the cost.
+
+**2. Raise the connection pool.** Each vote does ~3 pool acquisitions (two
+reads plus the transaction). At 600 votes/s that is ~1800 acquisitions/s
+through `DB_POOL_SIZE=10` connections — the pool is likely the limit before the
+database is.
+
+```env
+DB_POOL_SIZE=20        # useful range is 10-25
+```
+
+Then raise `max_connections` to cover `instances × DB_POOL_SIZE`. Going much
+beyond 25 makes the database thrash and throughput *drops*.
+
+**3. Beyond that** — cache `settings`/`categories`/`sponsors` in Redis (read on
+nearly every page view, change rarely), and if you need true write
+scalability, accept votes into Redis and drain to MySQL asynchronously.
+
 ### First, separate two numbers people conflate
 
 - **Registered members** = database rows. 10k, 100k or 500k cost nothing.
@@ -349,23 +455,24 @@ Each visitor fires ~4–6 API calls on first load. At ~4000 req/s per instance:
 | Caching | in-process (built in) | Redis for settings/categories | Redis + edge caching |
 | Architecture | unchanged | unchanged | **writes must be decoupled** |
 
-The blocker at 300k is **not** Node — it is that every vote writes
-`UPDATE nominees SET vote_count = vote_count + 1` inside its transaction, so
-votes for the same nominee serialise on one row. Measured: **10,653 row-lock
-waits per 16,000 votes.**
+The write blocker used to be that every vote wrote
+`UPDATE nominees SET vote_count` inside its transaction, serialising on one row
+(measured: **10,653 row-lock waits per 16,000 votes**). **That is now fixed** —
+see [The vote-count lock problem](#-the-vote-count-lock-problem-fixed--and-how-to-go-further).
 
-To reach 300k you must first:
+To reach 300k you still need:
 
-1. **Remove the counter write lock** — derive counts from `votes`, or accumulate
-   in Redis and flush periodically. Removes ~10,600 lock waits per 16k votes.
-2. **Cache hot reads in Redis** — `settings`, `categories` and `sponsors` are
+1. **Remove the redundant duplicate pre-check** — one 4-way `OR` query per vote
+   that grows with the table and cannot use a single index
+2. **Raise `DB_POOL_SIZE`** to 20–25 and `max_connections` to match
+3. **Cache hot reads in Redis** — `settings`, `categories` and `sponsors` are
    read on nearly every page view and change rarely.
-3. **Shard `votes` by `category_id`** — 50 categories partition naturally, and
+4. **Shard `votes` by `category_id`** — 50 categories partition naturally, and
    each shard can live on a separate node.
-4. **Queue writes** — accept the vote into Redis/Kafka, return 201 immediately,
+5. **Queue writes** — accept the vote into Redis/Kafka, return 201 immediately,
    drain to MySQL asynchronously. Vote totals become eventually consistent.
 
-Steps 1 and 4 are code changes. The runbook lists the full sequence.
+Steps 1, 2 and 5 are the ones that matter. The runbook lists the full sequence.
 
 ### The database matters more than the servers
 
