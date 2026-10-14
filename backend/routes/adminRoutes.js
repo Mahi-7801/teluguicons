@@ -97,7 +97,12 @@ const firstUrl = (...candidates) => {
 // Shortlisting a nomination creates (or refreshes) the official nominee page.
 // Idempotent: re-shortlisting updates the same nominee and never mints a new
 // URL, so links already printed on posters and QR codes keep working.
-async function promoteNomination(nomination, categoryId) {
+//
+// `db` is the executor to use. Pass a transaction connection to keep the
+// nominee row and the nomination status in one atomic unit - otherwise a
+// failure here leaves the nomination reading "Shortlisted" with no nominee
+// page behind it.
+async function promoteNomination(nomination, categoryId, db = pool) {
   const fullName = nomination.creator_name || nomination.full_name;
   const profile = {
     bio: nomination.journey || null,
@@ -124,11 +129,11 @@ async function promoteNomination(nomination, categoryId) {
   let nomineeCode = null;
 
   if (hasNominationId) {
-    const [existing] = await pool.query('SELECT id, nominee_code FROM nominees WHERE nomination_id = ? LIMIT 1', [nomination.id]);
+    const [existing] = await db.query('SELECT id, nominee_code FROM nominees WHERE nomination_id = ? LIMIT 1', [nomination.id]);
     if (existing.length > 0) {
       nomineeId = existing[0].id;
       nomineeCode = existing[0].nominee_code;
-      await pool.query(
+      await db.query(
         `UPDATE nominees SET
            category_id = ?, full_name = ?, bio = ?, photo_url = ?, social_handle = ?, status = 'approved'
            ${extraColumns.length ? ', ' + buildAssignments() : ''}
@@ -141,7 +146,7 @@ async function promoteNomination(nomination, categoryId) {
   if (!nomineeId) {
     const slug = await uniqueSlug(fullName);
     const created = await withNomineeCode(async (code) => {
-      const [result] = await pool.query(
+      const [result] = await db.query(
         `INSERT INTO nominees (category_id, full_name, slug, bio, photo_url, social_handle, status, nominee_code${hasNominationId ? ', nomination_id' : ''}${extraColumns.length ? ', ' + extraColumns.join(', ') : ''})
          VALUES (?, ?, ?, ?, ?, ?, 'approved', ?${hasNominationId ? ', ?' : ''}${extraColumns.length ? ', ' + extraColumns.map(() => '?').join(', ') : ''})`,
         [categoryId, fullName, slug, profile.bio, profile.photo_url, profile.social_handle, code, ...(hasNominationId ? [nomination.id] : []), ...buildValues()]
@@ -153,7 +158,7 @@ async function promoteNomination(nomination, categoryId) {
   }
 
   if (nomineeCode) {
-    await pool.query('UPDATE nominations SET nomination_code = COALESCE(nomination_code, ?) WHERE id = ?', [nomineeCode, nomination.id]);
+    await db.query('UPDATE nominations SET nomination_code = COALESCE(nomination_code, ?) WHERE id = ?', [nomineeCode, nomination.id]);
   }
   return { id: nomineeId, nominee_code: nomineeCode };
 }
@@ -179,6 +184,7 @@ router.get('/nominations', async (req, res) => {
 });
 
 router.put('/nominations/:id', async (req, res) => {
+  let conn;
   try {
     const { status, admin_notes, category_id } = req.body;
     const [rows] = await pool.query('SELECT * FROM nominations WHERE id = ?', [req.params.id]);
@@ -187,18 +193,37 @@ router.put('/nominations/:id', async (req, res) => {
     }
     const nomination = rows[0];
 
-    await pool.query(
-      'UPDATE nominations SET status = COALESCE(?, status), admin_notes = COALESCE(?, admin_notes), category_id = COALESCE(?, category_id) WHERE id = ?',
-      [status, admin_notes, category_id, req.params.id]
-    );
+    // The status write and the promotion it triggers are one unit. Committing
+    // the status first meant a failure while creating the nominee page left the
+    // dashboard reading "Shortlisted" with no nominee behind it - the admin
+    // saw a success state and a missing nominee with no error to explain it.
+    conn = await pool.getConnection();
+    let promoted = null;
+    try {
+      await conn.beginTransaction();
 
-    // Shortlisting a verified nomination promotes it to an official nominee.
-    if (status === 'shortlisted') {
-      await promoteNomination(nomination, category_id || nomination.category_id);
+      await conn.query(
+        'UPDATE nominations SET status = COALESCE(?, status), admin_notes = COALESCE(?, admin_notes), category_id = COALESCE(?, category_id) WHERE id = ?',
+        [status, admin_notes, category_id, req.params.id]
+      );
+
+      // Shortlisting a verified nomination promotes it to an official nominee.
+      if (status === 'shortlisted') {
+        promoted = await promoteNomination(nomination, category_id || nomination.category_id, conn);
+      }
+
+      await conn.commit();
+    } catch (txErr) {
+      try { await conn.rollback(); } catch (_) {}
+      throw txErr;
+    } finally {
+      conn.release();
+      conn = null;
     }
 
-    res.json({ message: 'Nomination updated' });
+    res.json({ message: 'Nomination updated', ...(promoted ? { nominee: promoted } : {}) });
   } catch (error) {
+    if (conn) { try { conn.rollback(); } catch (_) {} conn.release(); }
     console.error('Update nomination error:', error.message);
     res.status(500).json({ message: error.message });
   }

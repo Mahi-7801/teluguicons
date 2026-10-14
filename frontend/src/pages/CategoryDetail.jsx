@@ -58,7 +58,7 @@ export default function CategoryDetail() {
               <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <span className="text-2xl sm:text-3xl">{category?.icon || '🏆'}</span>
                 <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-champagne-500/10 text-champagne-400 border border-champagne-500/20 uppercase tracking-wider">
-                  {category?.type === 'jury' ? 'Grand Jury Selection' : "People's Choice (Public Vote)"}
+                  {category?.voting_open !== false ? "People's Choice (Public Vote)" : 'Grand Jury Selection'}
                 </span>
                 {category?.voting_open !== false && (
                   <span className="px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">

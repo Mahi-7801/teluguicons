@@ -514,21 +514,26 @@ INSERT INTO `users` (`name`, `email`, `password_hash`, `role`) VALUES
 ON DUPLICATE KEY UPDATE `email` = `email`;
 
 -- -------------------------------------------------
--- 10 JURY & SPECIAL RECOGNITION AWARDS
--- (Selected via official jury/organizing process.
---  NOT open for self-nomination or public voting.)
+-- 10 SPECIAL RECOGNITION AWARDS
+--
+-- These were originally seeded as jury awards (type 'jury', voting_open 0),
+-- which made them impossible to vote in - see
+-- migrations/2026-10-14-open-all-jury-categories.sql for the full story. They
+-- are now publicly voted People's Choice categories like every other award.
+-- The 'jury-*' slugs are kept on purpose so existing category URLs, nominee
+-- links and QR codes do not break; renaming them needs redirects.
 -- -------------------------------------------------
 INSERT INTO `categories` (`name`, `slug`, `type`, `description`, `icon`, `sort_order`, `voting_open`) VALUES
-('Telugu Digital Creator of the Year', 'jury-digital-creator-year', 'jury', 'The most outstanding digital creator of the year across the Telugu ecosystem.', 'crown', 1, 0),
-('Telugu Digital Icon of the Year', 'jury-digital-icon-year', 'jury', 'The defining digital icon of the Telugu creator ecosystem.', 'trophy', 2, 0),
-('Telugu Influencer of the Year', 'jury-influencer-year', 'jury', 'The most influential digital personality shaping Telugu culture.', 'star', 3, 0),
-('Creator Excellence Award', 'jury-creator-excellence', 'jury', 'Sustained excellence in content creation and community building.', 'medal', 4, 0),
-('Most Popular Digital Creator', 'jury-most-popular', 'jury', 'The digital creator with the widest public reach and love.', 'heart', 5, 0),
-('Best Male Digital Creator', 'jury-best-male-creator', 'jury', 'Outstanding male digital creator of the year.', 'male', 6, 0),
-('Best Female Digital Creator', 'jury-best-female-creator', 'jury', 'Outstanding female digital creator of the year.', 'female', 7, 0),
-('Rising Digital Star of the Year', 'jury-rising-star', 'jury', 'The breakout digital talent of the year.', 'rocket', 8, 0),
-('Digital Entrepreneur of the Year', 'jury-digital-entrepreneur', 'jury', 'The creator-entrepreneur building the most significant digital business.', 'briefcase', 9, 0),
-('Lifetime Achievement Award - Digital Media', 'jury-lifetime-achievement', 'jury', 'Honouring a lifetime of contribution to Telugu digital media.', 'award', 10, 0)
+('Telugu Digital Creator of the Year', 'jury-digital-creator-year', 'self_nomination', 'The most outstanding digital creator of the year across the Telugu ecosystem.', 'crown', 1, 1),
+('Telugu Digital Icon of the Year', 'jury-digital-icon-year', 'self_nomination', 'The defining digital icon of the Telugu creator ecosystem.', 'trophy', 2, 1),
+('Telugu Influencer of the Year', 'jury-influencer-year', 'self_nomination', 'The most influential digital personality shaping Telugu culture.', 'star', 3, 1),
+('Creator Excellence Award', 'jury-creator-excellence', 'self_nomination', 'Sustained excellence in content creation and community building.', 'medal', 4, 1),
+('Most Popular Digital Creator', 'jury-most-popular', 'self_nomination', 'The digital creator with the widest public reach and love.', 'heart', 5, 1),
+('Best Male Digital Creator', 'jury-best-male-creator', 'self_nomination', 'Outstanding male digital creator of the year.', 'male', 6, 1),
+('Best Female Digital Creator', 'jury-best-female-creator', 'self_nomination', 'Outstanding female digital creator of the year.', 'female', 7, 1),
+('Rising Digital Star of the Year', 'jury-rising-star', 'self_nomination', 'The breakout digital talent of the year.', 'rocket', 8, 1),
+('Digital Entrepreneur of the Year', 'jury-digital-entrepreneur', 'self_nomination', 'The creator-entrepreneur building the most significant digital business.', 'briefcase', 9, 1),
+('Lifetime Achievement Award - Digital Media', 'jury-lifetime-achievement', 'self_nomination', 'Honouring a lifetime of contribution to Telugu digital media.', 'award', 10, 1)
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- -------------------------------------------------

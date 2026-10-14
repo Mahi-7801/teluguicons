@@ -27,7 +27,9 @@ export default function VotePage() {
   useEffect(() => {
     api.get('/categories').then((data) => {
       if (Array.isArray(data)) {
-        const open = data.filter((c) => c.voting_open && c.type === 'self_nomination');
+        // Gated on voting_open only. Filtering by type here hid categories
+        // that the API happily accepts votes for.
+        const open = data.filter((c) => c.voting_open);
         setCategories(open);
       }
     }).catch(() => {});

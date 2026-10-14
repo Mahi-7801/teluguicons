@@ -249,6 +249,23 @@ just don't get `TIC26-` codes, achievements/social link fields, or analytics.
 Nominee `TIC26-#####` codes come from the `code_counters` table (MySQL has no
 sequences), incremented atomically so concurrent inserts can never collide.
 
+#### Migrations
+
+`schema.sql` is the full picture for a **fresh** database. For a database that
+already exists, incremental changes live in
+`backend/database/migrations/` — one file per change, named
+`YYYY-MM-DD-short-description.sql`, each idempotent so it is safe to re-run:
+
+```bash
+mysql -h localhost -P 3307 -u root telugu_icon_awards \
+  < backend/database/migrations/2026-10-14-open-all-jury-categories.sql
+```
+
+> ⚠️ Re-running `schema.sql` does **not** overwrite existing rows. Its seed
+> blocks use `ON DUPLICATE KEY UPDATE name = name`, which is a no-op by design so
+> a re-apply can never reset live data. That also means a `schema.sql` seed
+> change only reaches existing databases through a migration file.
+
 > ⚠️ If you ever need to rewrite existing nominee slugs (`ananya-nagalla-k3f9a2` →
 > `ananya-nagalla`), do it **before** any nominee link, poster, QR code or video
 > has been distributed. After that, printed material breaks.
@@ -331,6 +348,22 @@ kit unlocks automatically.
 **Launch control:** voting is gated by the per-category `voting_open` flag in
 Admin → Categories. There is deliberately no hard-coded date gate, because
 requirement 15 states voting rules must remain unchanged.
+
+**`voting_open` is the only vote gate.** It used to be one of three:
+
+| Gate | Status |
+|---|---|
+| `voting_open = 1` — `voteRoutes.js:184` | the only gate |
+| `type = 'self_nomination'` — `voteRoutes.js:187` | **removed** |
+| `type = 'self_nomination'` — `VotePage.jsx:30` | **removed** |
+
+The `type = 'jury'` gates meant a category could read as open on screen and still
+reject every vote with "Voting is currently closed for this category" — and it
+made the "closed" message unreachable for jury categories, so they failed with a
+jury-only message instead. `type` is now presentation only: `AwardsPage` and
+`CategoryDetail` label a category from `voting_open`, not from `type`. All 51
+categories are public-vote categories; see
+`backend/database/migrations/2026-10-14-open-all-jury-categories.sql`.
 
 `GET /api/nominees` now also accepts a **category id** as well as a category
 slug, and returns achievements plus individual social URLs.

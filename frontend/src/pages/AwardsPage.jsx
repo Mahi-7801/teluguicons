@@ -46,18 +46,22 @@ export default function AwardsPage() {
         <div className="relative max-w-5xl mx-auto">
           <div className="text-[10px] tracking-[3px] sm:tracking-[4px] text-[#f1d99a] font-black uppercase mb-2">The Categories</div>
           <h1 className="font-serif-luxury text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-[#fff7e8] mb-3 sm:mb-4">
-            50 Public Categories <span className="text-[#f1d99a]">+ 10 Special Awards.</span>
+            {selfNomination.length} Public Categories{jury.length > 0 ? <span className="text-[#f1d99a]"> + {jury.length} Special Awards.</span> : '.'}
           </h1>
           <p className="text-[#f6e9d5] max-w-2xl mx-auto text-xs sm:text-base mb-6 sm:mb-8 leading-relaxed">
-            Every award clearly identifies its decision method: 50 People’s Choice categories decided by public voting, and 10 Special Awards decided by the official jury.
+            {jury.length > 0
+              ? `Every award clearly identifies its decision method: ${selfNomination.length} People’s Choice categories decided by public voting, and ${jury.length} Special Awards decided by the official jury.`
+              : 'Every award category is decided by verified public voting.'}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center items-center">
             <div className="inline-flex rounded border border-[rgba(216,181,107,0.3)] bg-black/40 p-1 flex-wrap justify-center">
               {[
-                { key: 'all', label: `All Awards (${categories.length || 60})` },
-                { key: 'self', label: `Public Voting (${selfNomination.length || 50})` },
-                { key: 'jury', label: `Jury Awards (${jury.length || 10})` },
+                { key: 'all', label: `All Awards (${categories.length})` },
+                { key: 'self', label: `Public Voting (${selfNomination.length})` },
+                // Hidden when every category is publicly voted - an empty tab
+                // reads as broken rather than as "none configured".
+                ...(jury.length > 0 ? [{ key: 'jury', label: `Jury Awards (${jury.length})` }] : []),
               ].map((t) => (
                 <button
                   key={t.key}
@@ -103,7 +107,9 @@ export default function AwardsPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2.5 sm:mb-3">
                     <span className="badge-gold">
-                      {cat.type === 'jury' ? '👑 JURY AWARD · JURY SELECTED' : '🗳 PEOPLE\'S CHOICE · PUBLIC VOTING'}
+                      {!cat.voting_open
+                        ? '👑 JURY AWARD · JURY SELECTED'
+                        : '🗳 PEOPLE\'S CHOICE · PUBLIC VOTING'}
                     </span>
                     <span className="text-xs text-[#a99888] font-mono">#{String(cat.sort_order || i + 1).padStart(2, '0')}</span>
                   </div>
@@ -111,14 +117,14 @@ export default function AwardsPage() {
                     {cat.name}
                   </h3>
                   <p className="text-[#d7c8b8] text-xs leading-relaxed mb-4">
-                    {cat.description || (cat.type === 'jury'
+                    {cat.description || (!cat.voting_open
                       ? 'Special recognition selected by the official jury; not open for self-nomination or public voting.'
                       : 'Eligible for creator self-nomination and public voting, subject to category relevance and verification.')}
                   </p>
                 </div>
 
                 <div className="pt-3 sm:pt-4 border-t border-[rgba(216,181,107,0.15)] flex items-center justify-between">
-                  {cat.type === 'jury' ? (
+                  {!cat.voting_open ? (
                     <span className="text-[11px] text-[#a99888] italic">Official Jury Decision</span>
                   ) : (
                     <Link to="/nominate" className="btn-gold text-xs py-1.5 px-3">

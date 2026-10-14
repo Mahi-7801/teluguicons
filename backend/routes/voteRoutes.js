@@ -181,11 +181,13 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ message: 'Nominee not found or not approved' });
     }
     const nominee = nomineeRows[0];
+    // There is no jury/self_nomination block here on purpose. Once a category
+    // has approved nominees it is publicly votable, whatever its label says -
+    // a second gate meant a category could be open on screen and still reject
+    // every vote. Jury categories are switched over through a migration (see
+    // backend/database/migrations/), not by adding another check here.
     if (nominee.voting_open !== 1) {
       return res.status(400).json({ message: 'Voting is currently closed for this category' });
-    }
-    if (nominee.type === 'jury') {
-      return res.status(400).json({ message: 'This category is handled through the official jury process and is not open for public voting' });
     }
 
     // ---- Duplicate prevention: one device + one IP + one phone + one email =
